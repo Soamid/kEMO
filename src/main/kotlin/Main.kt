@@ -13,10 +13,10 @@ fun main() {
     val algorithm = NSGAII(
         zdT1, NondominatedSortingPopulation(),
         EpsilonBoxDominanceArchive(0.01), TournamentSelection(), SBX(0.5, 0.1),
-        RandomInitialization(zdT1, 10))
+        RandomInitialization(zdT1, 10)
+    )
 
     val hgsConfig = HGSConfiguration(
-        population = Population(),
         comparisonMultipliers = listOf(1.0, 0.08, 0.020),
         costModifiers = listOf(1.0, 1.0, 1.0),
         crossoverEtas = listOf(15.0, 20.0, 25.0),
@@ -30,5 +30,5 @@ fun main() {
         sproutiveness = 3,
         subPopulationSizes = listOf(64, 20, 10)
     )
-    val hgs = HGS(problem = ZDT1(), parameters = hgsConfig)
+    val hgs = HGS(population = Population(), problem = ZDT1(), parameters = hgsConfig)
 }
