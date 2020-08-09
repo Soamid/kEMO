@@ -1,13 +1,21 @@
 plugins {
     kotlin("jvm") version "1.3.72"
+    idea
 }
 
 group = "pl.edu.agh"
 version = "1.0-SNAPSHOT"
 
+idea {
+    module {
+        isDownloadJavadoc = true
+        isDownloadSources = true
+    }
+}
+
 tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile> {
     kotlinOptions {
-        jvmTarget = "1.8"
+        jvmTarget = "11"
     }
 }
 

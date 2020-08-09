@@ -7,9 +7,8 @@ import org.moeaframework.core.NondominatedPopulation
 import org.moeaframework.core.Population
 import org.moeaframework.core.Problem
 import org.moeaframework.core.variable.RealVariable
+import pl.edu.agh.kemo.tools.sample
 import java.lang.Math.abs
-
-typealias Driver = (Problem, Population, mutationEta: Double, mutationRate: Double) -> Algorithm
 
 data class HGSConfiguration(
     val fitnessErrors: List<Double>,
@@ -28,7 +27,7 @@ data class HGSConfiguration(
 
 class HGS(
     problem: Problem,
-    val driver: Driver? = null,
+    val driver: DriverBuilder<*>,
     val population: Population,
     private val parameters: HGSConfiguration
 ) :
@@ -36,11 +35,11 @@ class HGS(
 
     private val minDistances: List<Double>
 
-    private val nodes: List<Node>
+    private val nodes: MutableList<Node>
 
-    private val levelNodes: Map<Int, List<Node>>
+    private val levelNodes: Map<Int, MutableList<Node>>
 
-    private var root: Node? = null
+    private val root: Node
 
     init {
         val cornersDistance = calculateCornersDistance()
@@ -48,13 +47,22 @@ class HGS(
         nodes = mutableListOf()
         levelNodes = (0 until parameters.maxLevel).associateWith { mutableListOf<Node>() }
 
+        this.root = createRoot(problem)
+
         println(cornersDistance)
         println(minDistances)
     }
 
-    override fun initialize() {
-//        this.root = Node(problem, driver, 0,  )
+    private fun createRoot(problem: Problem): Node {
+        val rootPopulation = Population().apply {
+            addAll(population.sample(parameters.subPopulationSizes[0]))
+        }
+        return Node(problem, driver, 0, rootPopulation, parameters)
+    }
 
+    override fun initialize() {
+        nodes.add(root)
+        levelNodes[0]?.add(root)
         super.initialize()
     }
 
@@ -74,7 +82,47 @@ class HGS(
     }
 
     override fun iterate() {
+        printStatus()
+        runMetaepoch()
+        trimSprouts()
+        releaseNewSprouts()
+        reviveRoot()
+    }
+
+    private fun printStatus() {
+        println("all nodes: ${nodes.size}, alive: ${nodes.count { it.alive }}, ripe:  ${nodes.count { it.ripe }}")
+        levelNodes.forEach {
+            println(
+                "level ${it.key}, " +
+                        "alive: ${it.value.count { it.alive }}, " +
+                        "ripe:  ${it.value.count { it.ripe }}"
+            )
+        }
+    }
+
+    private fun runMetaepoch() {
+        numberOfEvaluations += levelNodes.keys.asSequence()
+            .map { level ->
+                levelNodes[level]?.asSequence()
+                    ?.map { it.runMetaepoch() }
+                    ?.map { calculateCost(level, it) }
+                    ?.count()
+                    ?: 0
+            }.count()
+    }
+
+    private fun calculateCost(nodeLevel: Int, driverCost: Int): Int =
+        (parameters.costModifiers[nodeLevel] * driverCost).toInt()
+
+    private fun trimSprouts() {
         TODO("Not yet implemented")
     }
 
+    private fun releaseNewSprouts() {
+        TODO("Not yet implemented")
+    }
+
+    private fun reviveRoot() {
+        TODO("Not yet implemented")
+    }
 }
