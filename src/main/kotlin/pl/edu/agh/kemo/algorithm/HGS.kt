@@ -1,14 +1,15 @@
 package pl.edu.agh.kemo.algorithm
 
 import org.apache.commons.math3.linear.MatrixUtils
+import org.apache.commons.math3.util.Precision
 import org.moeaframework.algorithm.AbstractAlgorithm
-import org.moeaframework.core.Algorithm
 import org.moeaframework.core.NondominatedPopulation
 import org.moeaframework.core.Population
 import org.moeaframework.core.Problem
 import org.moeaframework.core.variable.RealVariable
 import pl.edu.agh.kemo.tools.sample
 import java.lang.Math.abs
+import kotlin.math.pow
 
 data class HGSConfiguration(
     val fitnessErrors: List<Double>,
@@ -115,7 +116,35 @@ class HGS(
         (parameters.costModifiers[nodeLevel] * driverCost).toInt()
 
     private fun trimSprouts() {
-        TODO("Not yet implemented")
+        (parameters.maxLevel - 1 downTo 0).asSequence()
+            .map { levelNodes[it] }
+            .filterNotNull()
+            .forEach { nodes ->
+                trimNotProgressing(nodes)
+                trimRedundant(nodes)
+            }
+    }
+
+    private fun trimNotProgressing(nodes: List<Node>) {
+        nodes.asSequence()
+            .filter { it.alive }
+            .filter { isNotProgressing(it) }
+            .forEach {
+                it.alive = false
+                it.ripe = true
+                it.recalculateCenter()
+                println("KILLED not progressing: $it lvl=${it.level}")
+            }
+    }
+
+    private fun isNotProgressing(node: Node): Boolean =
+        node.previousHypervolume?.let {
+            val progressRatio = parameters.minProgressRatios[node.level] / 2.0.pow(node.level)
+            return it > 0 && node.hypervolume / ((it + Precision.EPSILON) - 1.0) < progressRatio
+        } ?: false
+
+    private fun trimRedundant(nodes: List<Node>) {
+
     }
 
     private fun releaseNewSprouts() {

@@ -5,22 +5,34 @@ import org.moeaframework.core.NondominatedPopulation
 import org.moeaframework.core.Population
 import org.moeaframework.core.Problem
 import org.moeaframework.core.Solution
+import org.moeaframework.core.Variable
 import org.moeaframework.core.indicator.Hypervolume
+import org.moeaframework.core.variable.RealVariable
+import pl.edu.agh.kemo.tools.mean
 
 class Node(
     private val problem: Problem,
     driverBuilder: DriverBuilder<*>,
-    private val level: Int,
+    val level: Int,
     private var population: Population,
     private val parameters: HGSConfiguration
 ) {
     var alive: Boolean = true
     var ripe: Boolean = false
-    var delegates: List<Solution> = listOf()
 
-    private var previousHypervolume: Double = 0.0
-    private var hypervolume: Double = 0.0
-    private var relativeHypervolume : Double? = null
+    var center: List<Variable>? = null
+            private set
+
+    var delegates: List<Solution> = listOf()
+            private set
+
+    var previousHypervolume: Double? = null
+            private set
+
+    var hypervolume: Double = 0.0
+            private set
+
+    private var relativeHypervolume: Double? = null
 
     val driver: Driver<*> =
         driverBuilder.create(problem, population, parameters.mutationEtas[level], parameters.crossoverEtas[level])
@@ -53,10 +65,14 @@ class Node(
         relativeHypervolume?.let {
             hypervolume = resultHypervolume - it
         }
-        if(relativeHypervolume == null) {
+        if (relativeHypervolume == null) {
             relativeHypervolume = resultHypervolume
         }
         println("hypervolume relative: $relativeHypervolume")
+    }
 
+    fun recalculateCenter() {
+        center = population.mean()
     }
 }
+
