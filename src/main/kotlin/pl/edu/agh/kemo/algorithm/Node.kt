@@ -1,15 +1,13 @@
 package pl.edu.agh.kemo.algorithm
 
-import jmetal.operators.mutation.PolynomialMutation
-import org.moeaframework.core.Algorithm
 import org.moeaframework.core.NondominatedPopulation
 import org.moeaframework.core.Population
 import org.moeaframework.core.Problem
 import org.moeaframework.core.Solution
-import org.moeaframework.core.Variable
 import org.moeaframework.core.indicator.Hypervolume
 import org.moeaframework.core.operator.real.PM
 import org.moeaframework.core.variable.RealVariable
+import pl.edu.agh.kemo.tools.countAlive
 import pl.edu.agh.kemo.tools.mean
 import pl.edu.agh.kemo.tools.redundant
 import pl.edu.agh.kemo.tools.variables
@@ -18,7 +16,7 @@ class Node(
     private val problem: Problem,
     driverBuilder: DriverBuilder<*>,
     val level: Int,
-    private var population: Population,
+    var population: Population,
     private val parameters: HGSConfiguration
 ) {
     var alive: Boolean = true
@@ -82,11 +80,11 @@ class Node(
         if (ripe) {
             sprouts.forEach { it.releaseSprouts(hgs) }
 
-            if (level < parameters.maxLevel && countAliveSprouts() < parameters.maxSproutsCount) {
+            if (level < parameters.maxLevel && sprouts.countAlive() < parameters.maxSproutsCount) {
                 var releasedSprouts = 0
 
                 for (delegate in delegates) {
-                    if (releasedSprouts >= parameters.sproutiveness || countAliveSprouts() >= parameters.maxSproutsCount) {
+                    if (releasedSprouts >= parameters.sproutiveness || sprouts.countAlive() >= parameters.maxSproutsCount) {
                         break
                     }
 
@@ -124,12 +122,6 @@ class Node(
         return (0 until size)
             .map { mutation.evolve(arrayOf(delegate))[0] }
             .let { Population(it) }
-    }
-
-    private fun countAliveSprouts(): Int {
-        return sprouts.asSequence()
-            .filter { it.alive }
-            .count()
     }
 }
 

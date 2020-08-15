@@ -6,8 +6,8 @@ import org.moeaframework.algorithm.AbstractAlgorithm
 import org.moeaframework.core.NondominatedPopulation
 import org.moeaframework.core.Population
 import org.moeaframework.core.Problem
-import org.moeaframework.core.Solution
 import org.moeaframework.core.variable.RealVariable
+import pl.edu.agh.kemo.tools.countAlive
 import pl.edu.agh.kemo.tools.redundant
 import pl.edu.agh.kemo.tools.sample
 import java.lang.Math.abs
@@ -20,7 +20,7 @@ data class HGSConfiguration(
     val mutationRates: List<Double>,
     val crossoverEtas: List<Double>,
     val referencePoint: List<Double>,
-    val minProgressRatios: List<Double>,
+    val initialMinProgressRatios: List<Double>,
     val comparisonMultipliers: List<Double>,
     val subPopulationSizes: List<Int>,
     val metaepochLength: Int,
@@ -41,6 +41,8 @@ class HGS(
 
     val minDistances: List<Double>
 
+    private val minProgressRatios: MutableList<Double>
+
     private val nodes: MutableList<Node>
 
     private val root: Node
@@ -48,8 +50,9 @@ class HGS(
     init {
         val cornersDistance = calculateCornersDistance()
         minDistances = parameters.comparisonMultipliers.map { it * cornersDistance }
+        minProgressRatios = parameters.initialMinProgressRatios.toMutableList()
         nodes = mutableListOf()
-        levelNodes = (0 until parameters.maxLevel).associateWith { mutableListOf<Node>() }
+        levelNodes = (0..parameters.maxLevel).associateWith { mutableListOf<Node>() }
 
         this.root = createRoot()
 
@@ -88,9 +91,11 @@ class HGS(
         return cornersMatrix.frobeniusNorm
     }
 
-    override fun getResult(): NondominatedPopulation {
-        TODO("Not yet implemented")
-    }
+    override fun getResult(): NondominatedPopulation =
+        nodes.asSequence()
+            .map { it.population.toList() }
+            .reduce { acc, subPopulation -> acc + subPopulation }
+            .let { NondominatedPopulation(it) }
 
     override fun iterate() {
         printStatus()
@@ -126,7 +131,7 @@ class HGS(
         (parameters.costModifiers[nodeLevel] * driverCost).toInt()
 
     private fun trimSprouts() {
-        (parameters.maxLevel - 1 downTo 0).asSequence()
+        (parameters.maxLevel downTo 0).asSequence()
             .map { levelNodes[it] }
             .filterNotNull()
             .forEach { nodes ->
@@ -149,7 +154,7 @@ class HGS(
 
     private fun isNotProgressing(node: Node): Boolean =
         node.previousHypervolume?.let {
-            val progressRatio = parameters.minProgressRatios[node.level] / 2.0.pow(node.level)
+            val progressRatio = minProgressRatios[node.level] / 2.0.pow(node.level)
             return it > 0 && node.hypervolume / ((it + Precision.EPSILON) - 1.0) < progressRatio
         } ?: false
 
@@ -189,6 +194,15 @@ class HGS(
     }
 
     private fun reviveRoot() {
-        TODO("Not yet implemented")
+        if (nodes.countAlive() == 0) {
+            nodes.asSequence()
+                .filter { it.ripe }
+                .forEach { ripeNode ->
+                    ripeNode.alive = true
+                    ripeNode.ripe = false
+                }
+            (0..parameters.maxLevel)
+                .forEach { minProgressRatios[it] = minProgressRatios[it] / 2 }
+        }
     }
 }

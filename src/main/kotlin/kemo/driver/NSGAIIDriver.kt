@@ -37,5 +37,4 @@ class NSGAIIDriver(algorithm: NSGAII) : Driver<NSGAII>(algorithm) {
     override fun nominateDelegates(): List<Solution> =
         algorithm.population
             .filter { it.getAttribute(NondominatedSorting.RANK_ATTRIBUTE) as Int == 0 }
-            .onEach { println("ranked delegate: $it") }
 }

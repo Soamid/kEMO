@@ -22,7 +22,7 @@ class HGSProvider : AlgorithmProvider() {
                 maxLevel = 2,
                 maxSproutsCount = 16,
                 metaepochLength = 5,
-                minProgressRatios = listOf(0.0, 0.00001, 0.0001),
+                initialMinProgressRatios = listOf(0.0, 0.00001, 0.0001),
                 mutationEtas = listOf(10.0, 12.0, 15.0),
                 mutationRates = createMutationRates(numberOfVariables),
                 referencePoint = listOf(), // TODO move to pl.edu.agh.kemo.algorithm.HGS init and calculate?
