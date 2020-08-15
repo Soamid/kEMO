@@ -60,16 +60,40 @@ class EvolutionaryExtensionsTest : StringSpec({
 
         meanSolution?.forAll {
             it.lowerBound shouldBe lowerBound
+
             it.upperBound shouldBe upperBound
         }
+    }
+
+    "redundant variables check (with respect to min distance" {
+        // given
+        val lowerBound = 0.0
+        val upperBound = 7.0
+
+        val variables1 = createVariables(listOf(1.0, 2.0, 3.0), lowerBound, upperBound)
+        val variables2 = createVariables(listOf(4.0, 5.0, 6.0), lowerBound, upperBound)
+
+        // when distance is ~5.1961
+        val notRedundantDistance = variables1.redundant(variables2, 5.0)
+        val redundantDistance = variables1.redundant(variables2, 5.2)
+
+        // then
+        notRedundantDistance shouldBe false
+        redundantDistance shouldBe true
     }
 })
 
 fun createSolution(values: List<Double>, lowerBound: Double, upperBound: Double): Solution =
-    values.map { RealVariable(it, lowerBound, upperBound) }
+    createVariables(values, lowerBound, upperBound)
         .let { variables ->
             Solution(3, 0).apply {
                 variables.indices.forEach { setVariable(it, variables[it]) }
             }
         }
+
+private fun createVariables(
+    values: List<Double>,
+    lowerBound: Double,
+    upperBound: Double
+) = values.map { RealVariable(it, lowerBound, upperBound) }
 

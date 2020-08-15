@@ -10,8 +10,9 @@ import org.moeaframework.util.TypedProperties
 import java.util.Properties
 
 class HGSProvider : AlgorithmProvider() {
-    override fun getAlgorithm(name: String?, properties: Properties?, problem: Problem?): Algorithm? {
+    override fun getAlgorithm(name: String, properties: Properties, problem: Problem): Algorithm? {
         val typedProperties = TypedProperties(properties)
+        val numberOfVariables = problem.numberOfVariables
         if (name.equals("HGS")) {
             val hgsConfig = HGSConfiguration(
                 comparisonMultipliers = listOf(1.0, 0.08, 0.020),
@@ -23,6 +24,7 @@ class HGSProvider : AlgorithmProvider() {
                 metaepochLength = 5,
                 minProgressRatios = listOf(0.0, 0.00001, 0.0001),
                 mutationEtas = listOf(10.0, 12.0, 15.0),
+                mutationRates = createMutationRates(numberOfVariables),
                 referencePoint = listOf(), // TODO move to pl.edu.agh.kemo.algorithm.HGS init and calculate?
                 sproutiveness = 3,
                 subPopulationSizes = listOf(64, 20, 10)
@@ -33,11 +35,15 @@ class HGSProvider : AlgorithmProvider() {
                 .let { Population(it) }
             return HGS(
                 population = population,
-                driver = NSGAIIDriverBuilder(),
+                driverBuilder = NSGAIIDriverBuilder(),
                 problem = problem ?: throw IllegalArgumentException("No problem provided"),
                 parameters = hgsConfig
             )
         }
         return null
+    }
+
+    private fun createMutationRates(numberOfVariables: Int) : List<Double> {
+        return (0..2).map { 1.0 / numberOfVariables }
     }
 }

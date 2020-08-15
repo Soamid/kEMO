@@ -6,7 +6,9 @@ import org.moeaframework.algorithm.AbstractAlgorithm
 import org.moeaframework.core.NondominatedPopulation
 import org.moeaframework.core.Population
 import org.moeaframework.core.Problem
+import org.moeaframework.core.Solution
 import org.moeaframework.core.variable.RealVariable
+import pl.edu.agh.kemo.tools.redundant
 import pl.edu.agh.kemo.tools.sample
 import java.lang.Math.abs
 import kotlin.math.pow
@@ -15,6 +17,7 @@ data class HGSConfiguration(
     val fitnessErrors: List<Double>,
     val costModifiers: List<Double>,
     val mutationEtas: List<Double>,
+    val mutationRates: List<Double>,
     val crossoverEtas: List<Double>,
     val referencePoint: List<Double>,
     val minProgressRatios: List<Double>,
@@ -28,17 +31,17 @@ data class HGSConfiguration(
 
 class HGS(
     problem: Problem,
-    val driver: DriverBuilder<*>,
+    val driverBuilder: DriverBuilder<*>,
     val population: Population,
     private val parameters: HGSConfiguration
 ) :
     AbstractAlgorithm(problem) {
 
-    private val minDistances: List<Double>
+    val levelNodes: Map<Int, List<Node>>
+
+    val minDistances: List<Double>
 
     private val nodes: MutableList<Node>
-
-    private val levelNodes: Map<Int, MutableList<Node>>
 
     private val root: Node
 
@@ -48,23 +51,30 @@ class HGS(
         nodes = mutableListOf()
         levelNodes = (0 until parameters.maxLevel).associateWith { mutableListOf<Node>() }
 
-        this.root = createRoot(problem)
+        this.root = createRoot()
 
         println(cornersDistance)
         println(minDistances)
     }
 
-    private fun createRoot(problem: Problem): Node {
+    private fun createRoot(): Node {
         val rootPopulation = Population().apply {
             addAll(population.sample(parameters.subPopulationSizes[0]))
         }
-        return Node(problem, driver, 0, rootPopulation, parameters)
+        return registerNode(rootPopulation, 0)
     }
 
-    override fun initialize() {
-        nodes.add(root)
-        levelNodes[0]?.add(root)
-        super.initialize()
+    fun registerNode(sproutPopulation: Population, level: Int): Node {
+        val node = Node(
+            problem = problem,
+            driverBuilder = driverBuilder,
+            level = level,
+            parameters = parameters,
+            population = sproutPopulation
+        )
+        nodes.add(node)
+        (levelNodes[level] as MutableList).add(node)
+        return node
     }
 
     private fun calculateCornersDistance(): Double {
@@ -144,11 +154,38 @@ class HGS(
         } ?: false
 
     private fun trimRedundant(nodes: List<Node>) {
+        val aliveNodes = nodes.filter { it.alive }
+        val deadNodes = nodes.filter { !it.alive && it.ripe }
+        val processed = mutableListOf<Node>()
 
+        for (sprout in aliveNodes) {
+            val toCompare = deadNodes + processed
+            sprout.recalculateCenter()
+
+            sprout.center?.let { center ->
+                isRedundant(toCompare, center, sprout.level)
+                    .let {
+                        sprout.alive = false
+                        println("KILLED redundant: $sprout lvl=${sprout.level}")
+                    }
+            }
+            processed.add(sprout)
+        }
+    }
+
+    private fun isRedundant(
+        toCompare: List<Node>,
+        center: List<RealVariable>,
+        level: Int
+    ): Boolean {
+        return toCompare.asSequence()
+            .map { it.center }
+            .filterNotNull()
+            .find { it.redundant(center, minDistances[level]) } != null
     }
 
     private fun releaseNewSprouts() {
-        TODO("Not yet implemented")
+        root.releaseSprouts(this)
     }
 
     private fun reviveRoot() {

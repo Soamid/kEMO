@@ -1,17 +1,21 @@
 package pl.edu.agh.kemo.tools
 
+import org.apache.commons.math3.linear.MatrixUtils
+import org.apache.commons.math3.linear.RealMatrix
 import org.moeaframework.core.Population
+import org.moeaframework.core.Solution
 import org.moeaframework.core.variable.RealVariable
 
-fun <T> Iterable<T>.sample(amount : Int) : List<T> = shuffled()
+fun <T> Iterable<T>.sample(amount: Int): List<T> = shuffled()
     .subList(0, amount)
 
 
+fun Solution.variables(): List<RealVariable> =
+   (0 until numberOfVariables).map { i -> getVariable(i) as RealVariable }
+
 
 fun Population.mean(): List<RealVariable>? {
-    val solutionsVariables = map { solution ->
-        (0 until solution.numberOfVariables).map { i -> solution.getVariable(i) as RealVariable }
-    }
+    val solutionsVariables = map { solution -> solution.variables() }
 
     if (solutionsVariables.isNotEmpty()) {
         val variablesCount = solutionsVariables[0].size
@@ -27,4 +31,16 @@ fun Population.mean(): List<RealVariable>? {
             }
     }
     return null
+}
+
+fun List<RealVariable>.toRealMatrix(): RealMatrix =
+    MatrixUtils.createRealMatrix(arrayOf(map { it.value }.toDoubleArray()))
+
+
+fun List<RealVariable>.redundant(otherSolution: List<RealVariable>, minDistance: Double): Boolean {
+    val solutionMatrix = toRealMatrix()
+    val otherSolutionMatrix = otherSolution.toRealMatrix()
+
+    val distance = solutionMatrix.subtract(otherSolutionMatrix).frobeniusNorm
+    return distance < minDistance
 }
