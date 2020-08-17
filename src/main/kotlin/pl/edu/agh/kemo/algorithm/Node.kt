@@ -6,6 +6,7 @@ import org.moeaframework.core.Problem
 import org.moeaframework.core.Solution
 import org.moeaframework.core.indicator.Hypervolume
 import org.moeaframework.core.operator.real.PM
+import org.moeaframework.core.spi.ProblemFactory
 import org.moeaframework.core.variable.RealVariable
 import pl.edu.agh.kemo.tools.countAlive
 import pl.edu.agh.kemo.tools.mean
@@ -61,14 +62,19 @@ class Node(
     private fun updateDominatedHypervolume(nondominatedPopulation: NondominatedPopulation) {
         previousHypervolume = hypervolume
 
-        val resultHypervolume = Hypervolume(problem, nondominatedPopulation).run {
+//        println("population for hv: ${nondominatedPopulation.size()}")
+        val referenceSet = ProblemFactory.getInstance().getReferenceSet(problem.name)
+//        println("Reference set size=${referenceSet.size()}, vars=${referenceSet.toList().map { it.variables() }}")
+        val resultHypervolume = Hypervolume(problem, referenceSet).run {
             evaluate(nondominatedPopulation)
         }
         relativeHypervolume?.let {
             hypervolume = resultHypervolume - it
+//            println("hv diff = $hypervolume")
         }
         if (relativeHypervolume == null) {
             relativeHypervolume = resultHypervolume
+//            println("hv = $relativeHypervolume")
         }
     }
 

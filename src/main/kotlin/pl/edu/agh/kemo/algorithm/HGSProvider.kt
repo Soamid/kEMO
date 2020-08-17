@@ -36,7 +36,7 @@ class HGSProvider : AlgorithmProvider() {
             return HGS(
                 population = population,
                 driverBuilder = NSGAIIDriverBuilder(),
-                problem = problem ?: throw IllegalArgumentException("No problem provided"),
+                problem = problem,
                 parameters = hgsConfig
             )
         }

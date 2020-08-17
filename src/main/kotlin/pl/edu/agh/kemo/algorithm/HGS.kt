@@ -114,6 +114,7 @@ class HGS(
                         "ripe:  ${it.value.count { it.ripe }}"
             )
         }
+        println("current cost: ${getNumberOfEvaluations()}")
     }
 
     private fun runMetaepoch() {
@@ -122,9 +123,9 @@ class HGS(
                 levelNodes[level]?.asSequence()
                     ?.map { it.runMetaepoch() }
                     ?.map { calculateCost(level, it) }
-                    ?.count()
+                    ?.sum()
                     ?: 0
-            }.count()
+            }.sum()
     }
 
     private fun calculateCost(nodeLevel: Int, driverCost: Int): Int =
@@ -134,6 +135,7 @@ class HGS(
         (parameters.maxLevel downTo 0).asSequence()
             .map { levelNodes[it] }
             .filterNotNull()
+            .filter { it.isNotEmpty() }
             .forEach { nodes ->
                 trimNotProgressing(nodes)
                 trimRedundant(nodes)
@@ -168,11 +170,10 @@ class HGS(
             sprout.recalculateCenter()
 
             sprout.center?.let { center ->
-                isRedundant(toCompare, center, sprout.level)
-                    .let {
-                        sprout.alive = false
-                        println("KILLED redundant: $sprout lvl=${sprout.level}")
-                    }
+                if (isRedundant(toCompare, center, sprout.level)) {
+                    sprout.alive = false
+                    println("KILLED redundant: $sprout lvl=${sprout.level}")
+                }
             }
             processed.add(sprout)
         }
