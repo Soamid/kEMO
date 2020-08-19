@@ -1,6 +1,6 @@
 package pl.edu.agh.kemo.algorithm
 
-import org.moeaframework.core.Algorithm
+import org.moeaframework.core.EvolutionaryAlgorithm
 import org.moeaframework.core.NondominatedPopulation
 import org.moeaframework.core.Population
 import org.moeaframework.core.Problem
@@ -9,15 +9,18 @@ import java.io.NotSerializableException
 import java.io.Serializable
 
 
-interface DriverBuilder<A : Algorithm> {
+interface DriverBuilder<A : EvolutionaryAlgorithm> {
 
-    fun create(problem: Problem, population: Population, mutationEta: Double, mutationRate: Double): Driver<A>
+    fun create(
+        problem: Problem, population: Population, mutationEta: Double, mutationRate: Double, crossoverEta: Double,
+        crossoverRate: Double
+    ): Driver<A>
 }
 
 
-abstract class Driver<A : Algorithm>(
+abstract class Driver<A : EvolutionaryAlgorithm>(
     protected val algorithm: A
-) : Algorithm {
+) : EvolutionaryAlgorithm {
 
     override fun getProblem(): Problem = algorithm.problem
 

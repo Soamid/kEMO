@@ -19,6 +19,7 @@ data class HGSConfiguration(
     val mutationEtas: List<Double>,
     val mutationRates: List<Double>,
     val crossoverEtas: List<Double>,
+    val crossoverRates: List<Double>,
     val referencePoint: List<Double>,
     val initialMinProgressRatios: List<Double>,
     val comparisonMultipliers: List<Double>,
@@ -46,6 +47,8 @@ class HGS(
     private val nodes: MutableList<Node>
 
     private val root: Node
+
+    private var metaepochNumber = 1
 
     init {
         val cornersDistance = calculateCornersDistance()
@@ -103,9 +106,11 @@ class HGS(
         trimSprouts()
         releaseNewSprouts()
         reviveRoot()
+        metaepochNumber++
     }
 
     private fun printStatus() {
+        println("SUMMARY #$metaepochNumber")
         println("all nodes: ${nodes.size}, alive: ${nodes.count { it.alive }}, ripe:  ${nodes.count { it.ripe }}")
         levelNodes.forEach {
             println(
@@ -118,7 +123,7 @@ class HGS(
     }
 
     private fun runMetaepoch() {
-        numberOfEvaluations += levelNodes.keys.asSequence()
+        numberOfEvaluations = levelNodes.keys.asSequence()
             .map { level ->
                 levelNodes[level]?.asSequence()
                     ?.map { it.runMetaepoch() }
@@ -157,7 +162,7 @@ class HGS(
     private fun isNotProgressing(node: Node): Boolean =
         node.previousHypervolume?.let {
             val progressRatio = minProgressRatios[node.level] / 2.0.pow(node.level)
-            return it > 0 && node.hypervolume / ((it + Precision.EPSILON) - 1.0) < progressRatio
+            return it > 0 && (node.hypervolume / (it + Precision.EPSILON) - 1.0) < progressRatio
         } ?: false
 
     private fun trimRedundant(nodes: List<Node>) {

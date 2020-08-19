@@ -8,13 +8,14 @@ import org.moeaframework.core.indicator.Hypervolume
 import org.moeaframework.core.operator.real.PM
 import org.moeaframework.core.spi.ProblemFactory
 import org.moeaframework.core.variable.RealVariable
+import pl.edu.agh.kemo.tools.BlurredProblem
 import pl.edu.agh.kemo.tools.countAlive
 import pl.edu.agh.kemo.tools.mean
 import pl.edu.agh.kemo.tools.redundant
 import pl.edu.agh.kemo.tools.variables
 
 class Node(
-    private val problem: Problem,
+    problem: Problem,
     driverBuilder: DriverBuilder<*>,
     val level: Int,
     var population: Population,
@@ -24,6 +25,8 @@ class Node(
     var ripe: Boolean = false
 
     val sprouts: List<Node> = mutableListOf()
+
+    val driver: Driver<*>
 
     var center: List<RealVariable>? = null
         private set
@@ -37,26 +40,34 @@ class Node(
     var hypervolume: Double = 0.0
         private set
 
+    private val problem: BlurredProblem
+
     private var relativeHypervolume: Double? = null
 
-    val driver: Driver<*> =
-        driverBuilder.create(problem, population, parameters.mutationEtas[level], parameters.crossoverEtas[level])
-
+    init {
+        this.problem = BlurredProblem(problem, parameters.fitnessErrors[level])
+        this.driver =
+            driverBuilder.create(
+                problem,
+                population,
+                mutationEta = parameters.mutationEtas[level],
+                mutationRate = parameters.mutationRates[level],
+                crossoverEta = parameters.crossoverEtas[level],
+                crossoverRate = parameters.crossoverRates[level]
+            )
+    }
 
     fun runMetaepoch(): Int {
         println("population at the beginning: ${population.size()}")
-        val costBeforeEpoch = driver.numberOfEvaluations
         repeat(parameters.metaepochLength) {
             driver.step()
         }
-        val metaepochCost = driver.numberOfEvaluations - costBeforeEpoch
-        val nondominatedPopulation = driver.result
-        population = nondominatedPopulation // TODO ensure it's ok to reduce population here
+        population = driver.population
         delegates = driver.nominateDelegates()
 
-        updateDominatedHypervolume(nondominatedPopulation)
+        updateDominatedHypervolume(NondominatedPopulation(population))
 
-        return metaepochCost
+        return driver.numberOfEvaluations
     }
 
     private fun updateDominatedHypervolume(nondominatedPopulation: NondominatedPopulation) {

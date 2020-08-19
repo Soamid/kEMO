@@ -2,6 +2,7 @@ package kemo.driver
 
 import org.moeaframework.algorithm.NSGAII
 import org.moeaframework.algorithm.StandardAlgorithmsWithInjectedPopulation
+import org.moeaframework.core.NondominatedPopulation
 import org.moeaframework.core.NondominatedSorting
 import org.moeaframework.core.Population
 import org.moeaframework.core.Problem
@@ -17,7 +18,9 @@ class NSGAIIDriverBuilder : DriverBuilder<NSGAII> {
         problem: Problem,
         population: Population,
         mutationEta: Double,
-        mutationRate: Double
+        mutationRate: Double,
+        crossoverEta: Double,
+        crossoverRate: Double
     ): Driver<NSGAII> {
 
         val standardAlgorithms =
@@ -27,6 +30,10 @@ class NSGAIIDriverBuilder : DriverBuilder<NSGAII> {
 
         val properties = Properties().apply {
             setProperty("populationSize", population.size().toString())
+            setProperty("pm.distributionIndex", mutationEta.toString())
+            setProperty("pm.rate", mutationRate.toString())
+            setProperty("sbx.distributionIndex", crossoverEta.toString())
+            setProperty("sbx.rate", crossoverRate.toString())
         }
         return NSGAIIDriver(standardAlgorithms.getAlgorithm("NSGAII", properties, problem) as NSGAII)
     }
@@ -37,4 +44,8 @@ class NSGAIIDriver(algorithm: NSGAII) : Driver<NSGAII>(algorithm) {
     override fun nominateDelegates(): List<Solution> =
         algorithm.population
             .filter { it.getAttribute(NondominatedSorting.RANK_ATTRIBUTE) as Int == 0 }
+
+    override fun getPopulation(): Population = algorithm.population
+
+    override fun getArchive(): NondominatedPopulation = algorithm.archive
 }
