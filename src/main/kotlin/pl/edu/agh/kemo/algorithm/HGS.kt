@@ -8,6 +8,7 @@ import org.moeaframework.core.Population
 import org.moeaframework.core.Problem
 import org.moeaframework.core.variable.RealVariable
 import pl.edu.agh.kemo.tools.countAlive
+import pl.edu.agh.kemo.tools.loggerFor
 import pl.edu.agh.kemo.tools.redundant
 import pl.edu.agh.kemo.tools.sample
 import java.lang.Math.abs
@@ -50,6 +51,10 @@ class HGS(
 
     private var metaepochNumber = 1
 
+    private var redundantKills = 0
+
+    private val log = loggerFor<HGS>()
+
     init {
         val cornersDistance = calculateCornersDistance()
         minDistances = parameters.comparisonMultipliers.map { it * cornersDistance }
@@ -58,9 +63,6 @@ class HGS(
         levelNodes = (0..parameters.maxLevel).associateWith { mutableListOf<Node>() }
 
         this.root = createRoot()
-
-        println(cornersDistance)
-        println(minDistances)
     }
 
     private fun createRoot(): Node {
@@ -110,16 +112,17 @@ class HGS(
     }
 
     private fun printStatus() {
-        println("SUMMARY #$metaepochNumber")
-        println("all nodes: ${nodes.size}, alive: ${nodes.count { it.alive }}, ripe:  ${nodes.count { it.ripe }}")
+        log.debug("SUMMARY #$metaepochNumber")
+        log.debug("all nodes: ${nodes.size}, alive: ${nodes.count { it.alive }}, ripe:  ${nodes.count { it.ripe }}")
         levelNodes.forEach {
-            println(
+            log.debug(
                 "level ${it.key}, " +
                         "alive: ${it.value.count { it.alive }}, " +
                         "ripe:  ${it.value.count { it.ripe }}"
             )
         }
-        println("current cost: ${getNumberOfEvaluations()}")
+        log.debug("current cost: ${getNumberOfEvaluations()}")
+        log.debug("redundant kills: $redundantKills")
     }
 
     private fun runMetaepoch() {
@@ -155,7 +158,7 @@ class HGS(
                 it.alive = false
                 it.ripe = true
                 it.recalculateCenter()
-                println("KILLED not progressing: $it lvl=${it.level}")
+                log.debug("KILLED not progressing: $it lvl=${it.level}")
             }
     }
 
@@ -177,7 +180,8 @@ class HGS(
             sprout.center?.let { center ->
                 if (isRedundant(toCompare, center, sprout.level)) {
                     sprout.alive = false
-                    println("KILLED redundant: $sprout lvl=${sprout.level}")
+                    log.debug("KILLED redundant: $sprout lvl=${sprout.level}")
+                    redundantKills++
                 }
             }
             processed.add(sprout)

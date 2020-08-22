@@ -1,19 +1,31 @@
 package pl.edu.agh.kemo.algorithm
 
 import kemo.driver.NSGAIIDriverBuilder
+import kemo.driver.OMOPSODriverBuilder
 import org.moeaframework.core.Algorithm
 import org.moeaframework.core.Population
 import org.moeaframework.core.Problem
 import org.moeaframework.core.operator.RandomInitialization
 import org.moeaframework.core.spi.AlgorithmProvider
 import org.moeaframework.util.TypedProperties
+import java.lang.IllegalArgumentException
 import java.util.Properties
 
 class HGSProvider : AlgorithmProvider() {
+
+    val driversMapping = mapOf(
+        "NSGAII" to ::NSGAIIDriverBuilder,
+        "OMOPSO" to ::OMOPSODriverBuilder
+    )
+
     override fun getAlgorithm(name: String, properties: Properties, problem: Problem): Algorithm? {
         val typedProperties = TypedProperties(properties)
         val numberOfVariables = problem.numberOfVariables
-        if (name.equals("HGS")) {
+
+        if(name.startsWith("HGS")) {
+            val driverName = name.substringAfter('+')
+            val driverProvider = driversMapping[driverName]
+                ?: throw IllegalArgumentException("Unknown driver: $driverName")
             val hgsConfig = HGSConfiguration(
 //                costModifiers = listOf(1.0, 1.0, 1.0),
 //                fitnessErrors = listOf(0.0, 0.0, 0.0),
@@ -39,7 +51,7 @@ class HGSProvider : AlgorithmProvider() {
                 .let { Population(it) }
             return HGS(
                 population = population,
-                driverBuilder = NSGAIIDriverBuilder(),
+                driverBuilder = driverProvider(),
                 problem = problem,
                 parameters = hgsConfig
             )

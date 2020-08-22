@@ -1,26 +1,49 @@
 package pl.edu.agh.kemo.algorithm
 
-import org.moeaframework.core.EvolutionaryAlgorithm
+import org.moeaframework.algorithm.StandardAlgorithmsWithInjectedPopulation
+import org.moeaframework.core.Algorithm
 import org.moeaframework.core.NondominatedPopulation
 import org.moeaframework.core.Population
 import org.moeaframework.core.Problem
 import org.moeaframework.core.Solution
+import org.moeaframework.core.operator.InjectedInitialization
+import org.moeaframework.core.spi.AlgorithmProvider
 import java.io.NotSerializableException
 import java.io.Serializable
+import java.util.Properties
 
 
-interface DriverBuilder<A : EvolutionaryAlgorithm> {
+interface DriverBuilder<A : Algorithm> {
 
     fun create(
         problem: Problem, population: Population, mutationEta: Double, mutationRate: Double, crossoverEta: Double,
         crossoverRate: Double
+    ): Driver<A> {
+        val properties = Properties().apply {
+            setProperty("populationSize", population.size().toString())
+        }
+        val algorithmProvider =
+            StandardAlgorithmsWithInjectedPopulation(
+                InjectedInitialization(problem, population.size(), population.toList())
+            )
+        return create(problem, algorithmProvider, mutationEta, mutationRate, crossoverEta, crossoverRate, properties)
+    }
+
+    fun create(
+        problem: Problem,
+        algorithmProvider: AlgorithmProvider,
+        mutationEta: Double,
+        mutationRate: Double,
+        crossoverEta: Double,
+        crossoverRate: Double,
+        properties: Properties
     ): Driver<A>
 }
 
 
-abstract class Driver<A : EvolutionaryAlgorithm>(
+abstract class Driver<A : Algorithm>(
     protected val algorithm: A
-) : EvolutionaryAlgorithm {
+) : Algorithm {
 
     override fun getProblem(): Problem = algorithm.problem
 
@@ -43,4 +66,6 @@ abstract class Driver<A : EvolutionaryAlgorithm>(
     override fun setState(state: Any?) = algorithm.setState(state)
 
     abstract fun nominateDelegates(): List<Solution>
+
+    abstract fun getPopulation(): Population
 }

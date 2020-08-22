@@ -58,11 +58,10 @@ class Node(
     }
 
     fun runMetaepoch(): Int {
-        println("population at the beginning: ${population.size()}")
         repeat(parameters.metaepochLength) {
             driver.step()
         }
-        population = driver.population
+        population = driver.getPopulation()
         delegates = driver.nominateDelegates()
 
         updateDominatedHypervolume(NondominatedPopulation(population))
@@ -73,19 +72,15 @@ class Node(
     private fun updateDominatedHypervolume(nondominatedPopulation: NondominatedPopulation) {
         previousHypervolume = hypervolume
 
-//        println("population for hv: ${nondominatedPopulation.size()}")
         val referenceSet = ProblemFactory.getInstance().getReferenceSet(problem.name)
-//        println("Reference set size=${referenceSet.size()}, vars=${referenceSet.toList().map { it.variables() }}")
         val resultHypervolume = Hypervolume(problem, referenceSet).run {
             evaluate(nondominatedPopulation)
         }
         relativeHypervolume?.let {
             hypervolume = resultHypervolume - it
-//            println("hv diff = $hypervolume")
         }
         if (relativeHypervolume == null) {
             relativeHypervolume = resultHypervolume
-//            println("hv = $relativeHypervolume")
         }
     }
 
@@ -100,7 +95,7 @@ class Node(
             if (level < parameters.maxLevel && sprouts.countAlive() < parameters.maxSproutsCount) {
                 var releasedSprouts = 0
 
-                for (delegate in delegates) {
+                for (delegate in delegates.shuffled()) { // TODO should delegates be shuffled before each sprouting?
                     if (releasedSprouts >= parameters.sproutiveness || sprouts.countAlive() >= parameters.maxSproutsCount) {
                         break
                     }
@@ -125,6 +120,7 @@ class Node(
         hgs.levelNodes[level + 1]?.asSequence()
             ?.filter { !it.population.isEmpty }
             ?.flatMap { sequenceOf(it.center) }
+            ?.onEach { println("CENTER for redundanct check: $it") }
             ?.filterNotNull()
             ?.all { nodeCenter -> !delegate.variables().redundant(nodeCenter, hgs.minDistances[level + 1]) }
             ?: false
