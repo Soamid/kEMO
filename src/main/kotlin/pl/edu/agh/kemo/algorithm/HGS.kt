@@ -25,6 +25,7 @@ data class HGSConfiguration(
     val initialMinProgressRatios: List<Double>,
     val comparisonMultipliers: List<Double>,
     val subPopulationSizes: List<Int>,
+    val mantissaBits: List<Int>,
     val metaepochLength: Int,
     val maxLevel: Int,
     val maxSproutsCount: Int,
@@ -157,7 +158,6 @@ class HGS(
             .forEach {
                 it.alive = false
                 it.ripe = true
-                it.recalculateCenter()
                 log.debug("KILLED not progressing: $it lvl=${it.level}")
             }
     }
@@ -175,7 +175,6 @@ class HGS(
 
         for (sprout in aliveNodes) {
             val toCompare = deadNodes + processed
-            sprout.recalculateCenter()
 
             sprout.center?.let { center ->
                 if (isRedundant(toCompare, center, sprout.level)) {

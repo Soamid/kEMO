@@ -17,40 +17,13 @@
  */
 package org.moeaframework.algorithm;
 
-import java.util.List;
-import java.util.Properties;
-
 import org.apache.commons.math3.util.CombinatoricsUtils;
-import org.moeaframework.algorithm.pso.OMOPSO;
-import org.moeaframework.algorithm.pso.SMPSO;
-import org.moeaframework.algorithm.single.DifferentialEvolution;
-import org.moeaframework.algorithm.single.EvolutionStrategy;
-import org.moeaframework.algorithm.single.GeneticAlgorithm;
-import org.moeaframework.algorithm.single.RepeatedSingleObjective;
-import org.moeaframework.algorithm.single.AggregateObjectiveComparator;
-import org.moeaframework.algorithm.single.MinMaxDominanceComparator;
-import org.moeaframework.algorithm.single.LinearDominanceComparator;
-import org.moeaframework.algorithm.single.SelfAdaptiveNormalVariation;
+import org.moeaframework.algorithm.pso.initialized.OMOPSO;
+import org.moeaframework.algorithm.pso.initialized.SMPSO;
+import org.moeaframework.algorithm.single.*;
 import org.moeaframework.analysis.sensitivity.EpsilonHelper;
-import org.moeaframework.core.Algorithm;
-import org.moeaframework.core.EpsilonBoxDominanceArchive;
-import org.moeaframework.core.FitnessEvaluator;
-import org.moeaframework.core.FrameworkException;
-import org.moeaframework.core.Initialization;
-import org.moeaframework.core.NondominatedPopulation;
-import org.moeaframework.core.NondominatedSortingPopulation;
-import org.moeaframework.core.PRNG;
-import org.moeaframework.core.Population;
-import org.moeaframework.core.Problem;
-import org.moeaframework.core.Selection;
-import org.moeaframework.core.Solution;
-import org.moeaframework.core.Variable;
-import org.moeaframework.core.Variation;
-import org.moeaframework.core.comparator.AggregateConstraintComparator;
-import org.moeaframework.core.comparator.ChainedComparator;
-import org.moeaframework.core.comparator.CrowdingComparator;
-import org.moeaframework.core.comparator.DominanceComparator;
-import org.moeaframework.core.comparator.ParetoDominanceComparator;
+import org.moeaframework.core.*;
+import org.moeaframework.core.comparator.*;
 import org.moeaframework.core.fitness.AdditiveEpsilonIndicatorFitnessEvaluator;
 import org.moeaframework.core.fitness.HypervolumeContributionFitnessEvaluator;
 import org.moeaframework.core.fitness.HypervolumeFitnessEvaluator;
@@ -70,6 +43,9 @@ import org.moeaframework.core.variable.RealVariable;
 import org.moeaframework.util.TypedProperties;
 import org.moeaframework.util.Vector;
 import org.moeaframework.util.weights.RandomGenerator;
+
+import java.util.List;
+import java.util.Properties;
 
 /**
  * WARNING: this class is copied from MOEAFramework 2.13 and modified to provied injected initialization object
@@ -813,7 +789,7 @@ public class StandardAlgorithmsWithInjectedPopulation extends AlgorithmProvider 
                 new double[] { EpsilonHelper.getEpsilon(problem) });
 
         return new OMOPSO(problem, populationSize, archiveSize,
-                epsilon, mutationProbability, perturbationIndex, maxIterations);
+                epsilon, mutationProbability, perturbationIndex, maxIterations, initialization);
     }
 
     /**
@@ -837,7 +813,7 @@ public class StandardAlgorithmsWithInjectedPopulation extends AlgorithmProvider 
                 20.0);
 
         return new SMPSO(problem, populationSize, archiveSize,
-                mutationProbability, distributionIndex);
+                mutationProbability, distributionIndex, initialization);
     }
 
     /**

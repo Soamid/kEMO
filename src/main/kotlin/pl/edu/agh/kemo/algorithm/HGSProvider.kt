@@ -2,6 +2,7 @@ package pl.edu.agh.kemo.algorithm
 
 import kemo.driver.NSGAIIDriverBuilder
 import kemo.driver.OMOPSODriverBuilder
+import kemo.driver.SMPSODriverBuilder
 import org.moeaframework.core.Algorithm
 import org.moeaframework.core.Population
 import org.moeaframework.core.Problem
@@ -15,7 +16,8 @@ class HGSProvider : AlgorithmProvider() {
 
     val driversMapping = mapOf(
         "NSGAII" to ::NSGAIIDriverBuilder,
-        "OMOPSO" to ::OMOPSODriverBuilder
+        "OMOPSO" to ::OMOPSODriverBuilder,
+        "SMPSO" to ::SMPSODriverBuilder
     )
 
     override fun getAlgorithm(name: String, properties: Properties, problem: Problem): Algorithm? {
@@ -41,6 +43,7 @@ class HGSProvider : AlgorithmProvider() {
                 crossoverRates = listOf(0.9, 0.9, 0.9),
                 mutationEtas = listOf(10.0, 12.0, 15.0),
                 mutationRates = createMutationRates(numberOfVariables),
+                mantissaBits = listOf(4, 16, 64),
                 referencePoint = listOf(), // TODO move to pl.edu.agh.kemo.algorithm.HGS init and calculate?
                 sproutiveness = 3,
                 subPopulationSizes = listOf(64, 20, 10)

@@ -5,9 +5,10 @@ import io.kotest.core.spec.style.StringSpec
 import io.kotest.inspectors.forAll
 import io.kotest.matchers.collections.shouldContainAll
 import io.kotest.matchers.collections.shouldHaveSize
-import io.kotest.matchers.should
+import io.kotest.matchers.doubles.plusOrMinus
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.shouldNotBe
+import org.moeaframework.analysis.collector.Accumulator
 import org.moeaframework.core.Population
 import org.moeaframework.core.Solution
 import org.moeaframework.core.variable.RealVariable
@@ -48,7 +49,7 @@ class EvolutionaryExtensionsTest : StringSpec({
         val population = Population(listOf(solution1, solution2))
 
         // when
-        val meanSolution = population.mean()
+        val meanSolution = population.average()
 
         // then
         meanSolution shouldNotBe null
@@ -81,7 +82,57 @@ class EvolutionaryExtensionsTest : StringSpec({
         notRedundantDistance shouldBe false
         redundantDistance shouldBe true
     }
+
+
+    "mean Accumulator value is calculated correctly (preserving min NFE metric)" {
+        // given
+        val accumulator1 =
+            createAccumulator(
+                mapOf(
+                    "Hypervolume" to listOf(1.0, 2.0, 3.0, 4.0),
+                    "IGD" to listOf(4.0, 5.0, 6.0),
+                    "NFE" to listOf(1001.0, 2000.0, 3002.0)
+                )
+            )
+        val accumulator2 =
+            createAccumulator(
+                mapOf(
+                    "Hypervolume" to listOf(4.0, 5.0, 6.0),
+                    "IGD" to listOf(7.0, 8.0, 10.0),
+                    "NFE" to listOf(1000.0, 2005.0, 3000.0)
+                )
+            )
+
+        val accumulators = listOf(accumulator1, accumulator2)
+
+        // when
+        val meanAccumulator = accumulators.average()
+
+        // then
+        meanAccumulator.size("Hypervolume") shouldBe 3
+        meanAccumulator["Hypervolume", 0] shouldBe 2.5
+        meanAccumulator["Hypervolume", 1] shouldBe 3.5
+        meanAccumulator["Hypervolume", 2] shouldBe 4.5
+
+        meanAccumulator.size("IGD") shouldBe 3
+        meanAccumulator["IGD", 0] shouldBe 5.5
+        meanAccumulator["IGD", 1] shouldBe 6.5
+        meanAccumulator["IGD", 2] shouldBe 8
+
+        meanAccumulator.size("NFE") shouldBe 3
+        meanAccumulator["NFE", 0] shouldBe 1000.0
+        meanAccumulator["NFE", 1] shouldBe 2000.0
+        meanAccumulator["NFE", 2] shouldBe 3000.0
+    }
 })
+
+fun createAccumulator(resultsData: Map<String, List<Double>>): Accumulator {
+    val accumulator = Accumulator()
+    resultsData.keys.forEach { metric ->
+        resultsData[metric]?.forEach { accumulator.add(metric, it) }
+    }
+    return accumulator
+}
 
 fun createSolution(values: List<Double>, lowerBound: Double, upperBound: Double): Solution =
     createVariables(values, lowerBound, upperBound)

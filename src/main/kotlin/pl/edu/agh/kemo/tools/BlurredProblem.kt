@@ -4,7 +4,7 @@ import org.moeaframework.core.PRNG
 import org.moeaframework.core.Problem
 import org.moeaframework.core.Solution
 
-class BlurredProblem(val innerProblem: Problem, val error: Double) : Problem {
+class BlurredProblem(private val innerProblem: Problem, private val error: Double) : Problem {
 
     override fun getName(): String = innerProblem.name
 

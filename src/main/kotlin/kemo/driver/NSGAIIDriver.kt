@@ -19,19 +19,20 @@ class NSGAIIDriverBuilder : DriverBuilder<NSGAII> {
         mutationRate: Double,
         crossoverEta: Double,
         crossoverRate: Double,
-        properties: Properties
+        properties: Properties,
+        mantissaBits: Int
     ): Driver<NSGAII> {
-         properties.apply {
+        properties.apply {
             setProperty("pm.distributionIndex", mutationEta.toString())
             setProperty("pm.rate", mutationRate.toString())
             setProperty("sbx.distributionIndex", crossoverEta.toString())
             setProperty("sbx.rate", crossoverRate.toString())
         }
-        return NSGAIIDriver(algorithmProvider.getAlgorithm("NSGAII", properties, problem) as NSGAII)
+        return NSGAIIDriver(algorithmProvider.getAlgorithm("NSGAII", properties, problem) as NSGAII, mantissaBits)
     }
 }
 
-class NSGAIIDriver(algorithm: NSGAII) : Driver<NSGAII>(algorithm) {
+class NSGAIIDriver(algorithm: NSGAII, mantissaBits: Int) : Driver<NSGAII>(algorithm, mantissaBits) {
 
     override fun nominateDelegates(): List<Solution> =
         algorithm.population

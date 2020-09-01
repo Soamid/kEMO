@@ -10,7 +10,8 @@ import org.moeaframework.core.spi.ProblemFactory
 import org.moeaframework.core.variable.RealVariable
 import pl.edu.agh.kemo.tools.BlurredProblem
 import pl.edu.agh.kemo.tools.countAlive
-import pl.edu.agh.kemo.tools.mean
+import pl.edu.agh.kemo.tools.average
+import pl.edu.agh.kemo.tools.loggerFor
 import pl.edu.agh.kemo.tools.redundant
 import pl.edu.agh.kemo.tools.variables
 
@@ -44,17 +45,21 @@ class Node(
 
     private var relativeHypervolume: Double? = null
 
+    private val log = loggerFor<Node>()
+
     init {
         this.problem = BlurredProblem(problem, parameters.fitnessErrors[level])
         this.driver =
             driverBuilder.create(
-                problem,
+                this.problem,
                 population,
                 mutationEta = parameters.mutationEtas[level],
                 mutationRate = parameters.mutationRates[level],
                 crossoverEta = parameters.crossoverEtas[level],
-                crossoverRate = parameters.crossoverRates[level]
+                crossoverRate = parameters.crossoverRates[level],
+                mantissaBits = parameters.mantissaBits[level]
             )
+        recalculateCenter()
     }
 
     fun runMetaepoch(): Int {
@@ -65,7 +70,9 @@ class Node(
         delegates = driver.nominateDelegates()
 
         updateDominatedHypervolume(NondominatedPopulation(population))
+        recalculateCenter()
 
+        log.debug("population size=${population.size()}")
         return driver.numberOfEvaluations
     }
 
@@ -85,7 +92,7 @@ class Node(
     }
 
     fun recalculateCenter() {
-        center = population.mean()
+        center = population.average()
     }
 
     fun releaseSprouts(hgs: HGS) {
@@ -95,7 +102,7 @@ class Node(
             if (level < parameters.maxLevel && sprouts.countAlive() < parameters.maxSproutsCount) {
                 var releasedSprouts = 0
 
-                for (delegate in delegates.shuffled()) { // TODO should delegates be shuffled before each sprouting?
+                for (delegate in delegates) { // TODO should delegates be shuffled before each sprouting?
                     if (releasedSprouts >= parameters.sproutiveness || sprouts.countAlive() >= parameters.maxSproutsCount) {
                         break
                     }
@@ -120,7 +127,6 @@ class Node(
         hgs.levelNodes[level + 1]?.asSequence()
             ?.filter { !it.population.isEmpty }
             ?.flatMap { sequenceOf(it.center) }
-            ?.onEach { println("CENTER for redundanct check: $it") }
             ?.filterNotNull()
             ?.all { nodeCenter -> !delegate.variables().redundant(nodeCenter, hgs.minDistances[level + 1]) }
             ?: false
