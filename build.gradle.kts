@@ -1,5 +1,5 @@
 plugins {
-    kotlin("jvm") version "1.3.72"
+    kotlin("jvm") version "1.4.0"
     idea
 }
 
@@ -15,7 +15,7 @@ idea {
 
 tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile> {
     kotlinOptions {
-        jvmTarget = "11"
+        jvmTarget = "1.8"
     }
 }
 
@@ -33,7 +33,7 @@ dependencies {
     implementation(group = "org.moeaframework", name = "moeaframework", version = "2.13")
     implementation(group = "org.slf4j", name="slf4j-api", version= "1.7.30")
     implementation(group = "org.slf4j", name="slf4j-log4j12", version= "1.7.30")
-
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.3.9")
 
     api(group="scientifik", name="kmath-core", version = "0.1.3")
     implementation("io.kotest:kotest-runner-console-jvm:4.1.3")

@@ -6,6 +6,7 @@ import org.moeaframework.algorithm.AbstractAlgorithm
 import org.moeaframework.core.NondominatedPopulation
 import org.moeaframework.core.Population
 import org.moeaframework.core.Problem
+import org.moeaframework.core.spi.ProblemFactory
 import org.moeaframework.core.variable.RealVariable
 import pl.edu.agh.kemo.tools.countAlive
 import pl.edu.agh.kemo.tools.loggerFor
@@ -32,11 +33,11 @@ data class HGSConfiguration(
     val sproutiveness: Int
 )
 
-class HGS(
+open class HGS(
     problem: Problem,
     val driverBuilder: DriverBuilder<*>,
     val population: Population,
-    private val parameters: HGSConfiguration
+    protected val parameters: HGSConfiguration
 ) :
     AbstractAlgorithm(problem) {
 
@@ -44,20 +45,23 @@ class HGS(
 
     val minDistances: List<Double>
 
-    private val minProgressRatios: MutableList<Double>
+    protected val minProgressRatios: MutableList<Double>
 
-    private val nodes: MutableList<Node>
+    protected val nodes: MutableList<Node>
 
-    private val root: Node
+    protected val root: Node
 
-    private var metaepochNumber = 1
+    protected var metaepochNumber = 1
 
-    private var redundantKills = 0
+    protected var redundantKills = 0
 
     private val log = loggerFor<HGS>()
 
+    protected val problemReferenceSet: NondominatedPopulation
+
     init {
         val cornersDistance = calculateCornersDistance()
+        problemReferenceSet = ProblemFactory.getInstance().getReferenceSet(problem.name)
         minDistances = parameters.comparisonMultipliers.map { it * cornersDistance }
         minProgressRatios = parameters.initialMinProgressRatios.toMutableList()
         nodes = mutableListOf()
@@ -74,15 +78,24 @@ class HGS(
     }
 
     fun registerNode(sproutPopulation: Population, level: Int): Node {
+        val node = createNode(level, sproutPopulation)
+        nodes.add(node)
+        (levelNodes[level] as MutableList).add(node)
+        return node
+    }
+
+    protected open fun createNode(
+        level: Int,
+        sproutPopulation: Population
+    ): Node {
         val node = Node(
             problem = problem,
+            problemReferenceSet = problemReferenceSet,
             driverBuilder = driverBuilder,
             level = level,
             parameters = parameters,
             population = sproutPopulation
         )
-        nodes.add(node)
-        (levelNodes[level] as MutableList).add(node)
         return node
     }
 
@@ -126,7 +139,7 @@ class HGS(
         log.debug("redundant kills: $redundantKills")
     }
 
-    private fun runMetaepoch() {
+    protected open fun runMetaepoch() {
         numberOfEvaluations = levelNodes.keys.asSequence()
             .map { level ->
                 levelNodes[level]?.asSequence()
@@ -137,7 +150,7 @@ class HGS(
             }.sum()
     }
 
-    private fun calculateCost(nodeLevel: Int, driverCost: Int): Int =
+    protected fun calculateCost(nodeLevel: Int, driverCost: Int): Int =
         (parameters.costModifiers[nodeLevel] * driverCost).toInt()
 
     private fun trimSprouts() {

@@ -7,6 +7,7 @@ import org.moeaframework.core.Population
 import org.moeaframework.core.Solution
 import org.moeaframework.core.variable.RealVariable
 import pl.edu.agh.kemo.algorithm.Node
+import pl.edu.agh.kemo.algorithm.ParallelNode
 
 fun <T> Iterable<T>.sample(amount: Int): List<T> = shuffled()
     .subList(0, amount)
@@ -44,6 +45,7 @@ fun List<RealVariable>.redundant(otherSolution: List<RealVariable>, minDistance:
     val otherSolutionMatrix = otherSolution.toRealMatrix()
 
     val distance = solutionMatrix.subtract(otherSolutionMatrix).frobeniusNorm
+//    println("distance: $distance, comparing to: $minDistance redundant: ${distance < minDistance}")
     return distance < minDistance
 }
 
@@ -52,6 +54,7 @@ fun List<Node>.countAlive(): Int {
         .filter { it.alive }
         .count()
 }
+
 
 fun List<Accumulator>.average(): Accumulator {
     val meanAccumulator = Accumulator()

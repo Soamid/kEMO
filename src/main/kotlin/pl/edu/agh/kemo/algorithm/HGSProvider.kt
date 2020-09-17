@@ -3,6 +3,7 @@ package pl.edu.agh.kemo.algorithm
 import kemo.driver.NSGAIIDriverBuilder
 import kemo.driver.OMOPSODriverBuilder
 import kemo.driver.SMPSODriverBuilder
+import kemo.driver.SPEA2DriverBuilder
 import org.moeaframework.core.Algorithm
 import org.moeaframework.core.Population
 import org.moeaframework.core.Problem
@@ -17,14 +18,15 @@ class HGSProvider : AlgorithmProvider() {
     val driversMapping = mapOf(
         "NSGAII" to ::NSGAIIDriverBuilder,
         "OMOPSO" to ::OMOPSODriverBuilder,
-        "SMPSO" to ::SMPSODriverBuilder
+        "SMPSO" to ::SMPSODriverBuilder,
+        "SPEA2" to ::SPEA2DriverBuilder
     )
 
     override fun getAlgorithm(name: String, properties: Properties, problem: Problem): Algorithm? {
         val typedProperties = TypedProperties(properties)
         val numberOfVariables = problem.numberOfVariables
 
-        if(name.startsWith("HGS")) {
+        if (name.startsWith("HGS") || name.startsWith("PHGS")) {
             val driverName = name.substringAfter('+')
             val driverProvider = driversMapping[driverName]
                 ?: throw IllegalArgumentException("Unknown driver: $driverName")
@@ -52,17 +54,27 @@ class HGSProvider : AlgorithmProvider() {
             val population = RandomInitialization(problem, populationSize)
                 .run { initialize() }
                 .let { Population(it) }
-            return HGS(
-                population = population,
-                driverBuilder = driverProvider(),
-                problem = problem,
-                parameters = hgsConfig
-            )
+
+            return when {
+                name.startsWith("HGS") -> HGS(
+                    population = population,
+                    driverBuilder = driverProvider(),
+                    problem = problem,
+                    parameters = hgsConfig
+                )
+                name.startsWith("PHGS") -> ParallelHGS(
+                    population = population,
+                    driverBuilder = driverProvider(),
+                    problem = problem,
+                    parameters = hgsConfig
+                )
+                else -> throw IllegalArgumentException("No such algorithm")
+            }
         }
         return null
     }
 
-    private fun createMutationRates(numberOfVariables: Int) : List<Double> {
+    private fun createMutationRates(numberOfVariables: Int): List<Double> {
         return (0..2).map { 1.0 / numberOfVariables }
     }
 }

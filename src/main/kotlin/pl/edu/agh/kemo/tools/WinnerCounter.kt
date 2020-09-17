@@ -1,7 +1,6 @@
 package pl.edu.agh.kemo.tools
 
 import org.moeaframework.analysis.collector.Accumulator
-import java.lang.IllegalArgumentException
 import kotlin.math.max
 import kotlin.math.min
 

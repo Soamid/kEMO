@@ -6,20 +6,20 @@ import org.moeaframework.core.Problem
 import org.moeaframework.core.Solution
 import org.moeaframework.core.indicator.Hypervolume
 import org.moeaframework.core.operator.real.PM
-import org.moeaframework.core.spi.ProblemFactory
 import org.moeaframework.core.variable.RealVariable
 import pl.edu.agh.kemo.tools.BlurredProblem
-import pl.edu.agh.kemo.tools.countAlive
 import pl.edu.agh.kemo.tools.average
+import pl.edu.agh.kemo.tools.countAlive
 import pl.edu.agh.kemo.tools.loggerFor
 import pl.edu.agh.kemo.tools.redundant
 import pl.edu.agh.kemo.tools.variables
 
-class Node(
+open class Node(
     problem: Problem,
     driverBuilder: DriverBuilder<*>,
     val level: Int,
     var population: Population,
+    private val problemReferenceSet: NondominatedPopulation,
     private val parameters: HGSConfiguration
 ) {
     var alive: Boolean = true
@@ -72,19 +72,23 @@ class Node(
         updateDominatedHypervolume(NondominatedPopulation(population))
         recalculateCenter()
 
-        log.debug("population size=${population.size()}")
         return driver.numberOfEvaluations
     }
 
     private fun updateDominatedHypervolume(nondominatedPopulation: NondominatedPopulation) {
         previousHypervolume = hypervolume
-
-        val referenceSet = ProblemFactory.getInstance().getReferenceSet(problem.name)
-        val resultHypervolume = Hypervolume(problem, referenceSet).run {
+//        val minPoint = (0 until problem.numberOfObjectives).map { 0.0 }.toDoubleArray()
+        val resultHypervolume = Hypervolume(problem.innerProblem, problemReferenceSet).run {
             evaluate(nondominatedPopulation)
         }
         relativeHypervolume?.let {
             hypervolume = resultHypervolume - it
+            if(hypervolume > 0.0) {
+//                Plot()
+//                    .add("current pop", nondominatedPopulation)
+//                    .add("reference set", referenceSet)
+//                    .showDialog()
+            }
         }
         if (relativeHypervolume == null) {
             relativeHypervolume = resultHypervolume
@@ -126,7 +130,7 @@ class Node(
     private fun delegateNotRedundant(hgs: HGS, delegate: Solution): Boolean =
         hgs.levelNodes[level + 1]?.asSequence()
             ?.filter { !it.population.isEmpty }
-            ?.flatMap { sequenceOf(it.center) }
+            ?.map { it.center }
             ?.filterNotNull()
             ?.all { nodeCenter -> !delegate.variables().redundant(nodeCenter, hgs.minDistances[level + 1]) }
             ?: false

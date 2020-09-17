@@ -30,7 +30,7 @@ class OMOPSODriverBuilder: DriverBuilder<OMOPSO> {
 
 class OMOPSODriver(algorithm: OMOPSO, mantissaBits: Int) : Driver<OMOPSO>(algorithm, mantissaBits) {
 
-    override fun nominateDelegates(): List<Solution> = algorithm.leaders
+    override fun nominateDelegates(): List<Solution> = algorithm.result.toList()
 
     override fun getPopulation(): Population = Population(algorithm.particles)
 }
