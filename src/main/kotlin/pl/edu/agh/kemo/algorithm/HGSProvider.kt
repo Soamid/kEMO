@@ -13,6 +13,11 @@ import org.moeaframework.util.TypedProperties
 import java.lang.IllegalArgumentException
 import java.util.Properties
 
+enum class HGSType(val shortName: String) {
+
+    CLASSIC("HGS"), PARALLEL("PHGS")
+}
+
 class HGSProvider : AlgorithmProvider() {
 
     val driversMapping = mapOf(
@@ -39,7 +44,6 @@ class HGSProvider : AlgorithmProvider() {
                 maxLevel = 2,
                 maxSproutsCount = 16,
                 metaepochLength = 5,
-//                initialMinProgressRatios = listOf(0.1, 0.0001, 0.001),
                 initialMinProgressRatios = listOf(0.0, 0.00001, 0.0001),
                 crossoverEtas = listOf(15.0, 20.0, 25.0),
                 crossoverRates = listOf(0.9, 0.9, 0.9),

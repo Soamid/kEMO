@@ -64,13 +64,13 @@ abstract class Driver<A : AbstractAlgorithm>(
     override fun getResult(): NondominatedPopulation = algorithm.result
 
     override fun step() {
-        if (algorithm.isInitialized) {
-            getPopulation().forEach { solution ->
-                solution.variables().forEach { variable ->
-                    variable.value = variable.value.trimMantissa(mantissaBits)
-                }
-            }
-        }
+//        if (algorithm.isInitialized) {
+//            getPopulation().forEach { solution ->
+//                solution.variables().forEach { variable ->
+//                    variable.value = variable.value.trimMantissa(mantissaBits)
+//                }
+//            }
+//        }
         algorithm.step()
     }
 
