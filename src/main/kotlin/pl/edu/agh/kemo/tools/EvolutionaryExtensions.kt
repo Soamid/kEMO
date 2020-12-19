@@ -64,8 +64,9 @@ fun List<Accumulator>.average(): Accumulator {
 
         metrics.asSequence()
             .forEach { metric ->
-                val results = map { accumulator ->
-                    val samplesCount = accumulator.size(metric)
+                val results =
+                    map { accumulator ->
+                    val samplesCount = if (metric in accumulator.keySet()) accumulator.size(metric) else 0
                     (0 until samplesCount).map { accumulator[metric, it] as Number }
                 }
                 val minSamplesCount = results.map { it.size }.min()

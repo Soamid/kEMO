@@ -786,7 +786,7 @@ public class StandardAlgorithmsWithInjectedPopulation extends AlgorithmProvider 
         double perturbationIndex = properties.getDouble("perturbationIndex",
                 0.5);
         double[] epsilon = properties.getDoubleArray("epsilon",
-                new double[] { EpsilonHelper.getEpsilon(problem) });
+                new double[] { 0.0075 });
 
         return new OMOPSO(problem, populationSize, archiveSize,
                 epsilon, mutationProbability, perturbationIndex, maxIterations, initialization);

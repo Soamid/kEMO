@@ -36,10 +36,10 @@ class HGSProvider : AlgorithmProvider() {
             val driverProvider = driversMapping[driverName]
                 ?: throw IllegalArgumentException("Unknown driver: $driverName")
             val hgsConfig = HGSConfiguration(
-//                costModifiers = listOf(1.0, 1.0, 1.0),
-//                fitnessErrors = listOf(0.0, 0.0, 0.0),
-                costModifiers = listOf(0.1, 0.5, 1.0),
-                fitnessErrors = listOf(0.1, 0.01, 0.0),
+                costModifiers = listOf(1.0, 1.0, 1.0),
+                fitnessErrors = listOf(0.0, 0.0, 0.0),
+//                costModifiers = listOf(0.1, 0.5, 1.0),
+//                fitnessErrors = listOf(0.1, 0.01, 0.0),
                 comparisonMultipliers = listOf(1.0, 0.08, 0.020),
                 maxLevel = 2,
                 maxSproutsCount = 16,
