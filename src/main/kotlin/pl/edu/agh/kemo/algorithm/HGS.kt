@@ -6,6 +6,7 @@ import org.moeaframework.algorithm.AbstractAlgorithm
 import org.moeaframework.core.NondominatedPopulation
 import org.moeaframework.core.Population
 import org.moeaframework.core.Problem
+import org.moeaframework.core.Solution
 import org.moeaframework.core.spi.ProblemFactory
 import org.moeaframework.core.variable.RealVariable
 import pl.edu.agh.kemo.tools.countAlive
@@ -33,11 +34,35 @@ data class HGSConfiguration(
     val sproutiveness: Int
 )
 
+fun interface NodeFactory {
+    fun createNode(
+        problem: Problem,
+        driverBuilder: DriverBuilder<*>,
+        level: Int,
+        population: Population,
+        problemReferenceSet: NondominatedPopulation,
+        parameters: HGSConfiguration
+    ): Node
+}
+
+class DefaultNodeFactory : NodeFactory {
+    override fun createNode(
+        problem: Problem,
+        driverBuilder: DriverBuilder<*>,
+        level: Int,
+        population: Population,
+        problemReferenceSet: NondominatedPopulation,
+        parameters: HGSConfiguration
+    ): Node = Node(problem, driverBuilder, level, population, problemReferenceSet, parameters)
+}
+
 open class HGS(
     problem: Problem,
     val driverBuilder: DriverBuilder<*>,
     val population: Population,
-    protected val parameters: HGSConfiguration
+    protected val parameters: HGSConfiguration,
+    private val nodeFactory: NodeFactory = DefaultNodeFactory(),
+    protected val budget : Int? = null
 ) :
     AbstractAlgorithm(problem) {
 
@@ -59,6 +84,8 @@ open class HGS(
 
     protected val problemReferenceSet: NondominatedPopulation
 
+    protected var finalizedPopulations: MutableMap<Node, List<Solution>> = mutableMapOf()
+
     init {
         val cornersDistance = calculateCornersDistance()
         problemReferenceSet = ProblemFactory.getInstance().getReferenceSet(problem.name)
@@ -78,6 +105,9 @@ open class HGS(
     }
 
     fun registerNode(sproutPopulation: Population, level: Int): Node {
+        if (level > 0 && levelNodes[level].isNullOrEmpty()) {
+            log.info("$level: $numberOfEvaluations")
+        }
         val node = createNode(level, sproutPopulation)
         nodes.add(node)
         (levelNodes[level] as MutableList).add(node)
@@ -87,17 +117,14 @@ open class HGS(
     protected open fun createNode(
         level: Int,
         sproutPopulation: Population
-    ): Node {
-        val node = Node(
-            problem = problem,
-            problemReferenceSet = problemReferenceSet,
-            driverBuilder = driverBuilder,
-            level = level,
-            parameters = parameters,
-            population = sproutPopulation
-        )
-        return node
-    }
+    ): Node = nodeFactory.createNode(
+        problem = problem,
+        problemReferenceSet = problemReferenceSet,
+        driverBuilder = driverBuilder,
+        level = level,
+        parameters = parameters,
+        population = sproutPopulation
+    )
 
     private fun calculateCornersDistance(): Double {
         val problemSample = problem.newSolution()
@@ -110,45 +137,53 @@ open class HGS(
         return cornersMatrix.frobeniusNorm
     }
 
-    override fun getResult(): NondominatedPopulation =
-        nodes.asSequence()
-            .map { it.population.toList() }
+    override fun getResult(): NondominatedPopulation {
+//        printStatus()
+        return finalizedPopulations.values
             .reduce { acc, subPopulation -> acc + subPopulation }
             .let { NondominatedPopulation(it) }
+    }
 
     override fun iterate() {
-        printStatus()
-        runMetaepoch()
-        trimSprouts()
-        releaseNewSprouts()
-        reviveRoot()
-        metaepochNumber++
+//        printStatus()
+        finalizedPopulations = nodes.associateWith { it.finalizedPopulation.toList() }.toMutableMap()
+        if (runMetaepoch()) {
+            trimSprouts()
+            releaseNewSprouts()
+            reviveRoot()
+            metaepochNumber++
+        }
     }
 
     private fun printStatus() {
-        log.debug("SUMMARY #$metaepochNumber")
-        log.debug("all nodes: ${nodes.size}, alive: ${nodes.count { it.alive }}, ripe:  ${nodes.count { it.ripe }}")
+        log.info("SUMMARY #$metaepochNumber")
+        log.info("all nodes: ${nodes.size}, alive: ${nodes.count { it.alive }}, ripe:  ${nodes.count { it.ripe }}")
         levelNodes.forEach {
-            log.debug(
+            log.info(
                 "level ${it.key}, " +
                         "alive: ${it.value.count { it.alive }}, " +
                         "ripe:  ${it.value.count { it.ripe }}"
             )
         }
-        log.debug("current cost: ${getNumberOfEvaluations()}")
-        log.debug("redundant kills: $redundantKills")
+        log.info("current cost: ${getNumberOfEvaluations()}")
+        log.info("redundant kills: $redundantKills")
     }
 
-    protected open fun runMetaepoch() {
-        numberOfEvaluations = levelNodes.keys.asSequence()
-            .map { level ->
-                levelNodes[level]?.asSequence()
-                    ?.map { it.runMetaepoch() }
-                    ?.map { calculateCost(level, it) }
-                    ?.sum()
-                    ?: 0
-            }.sum()
+    protected open fun runMetaepoch(): Boolean {
+        for (level in levelNodes.keys.asSequence()) {
+            levelNodes[level]?.forEach {
+                val epochCost = it.runMetaepoch()
+                numberOfEvaluations += calculateCost(level, epochCost)
+                if(isBudgetMet()) {
+                    return false
+                }
+                finalizedPopulations[it] = it.finalizedPopulation.toList()
+            }
+        }
+        return true
     }
+
+    protected fun isBudgetMet() = budget != null && numberOfEvaluations > budget
 
     protected fun calculateCost(nodeLevel: Int, driverCost: Int): Int =
         (parameters.costModifiers[nodeLevel] * driverCost).toInt()

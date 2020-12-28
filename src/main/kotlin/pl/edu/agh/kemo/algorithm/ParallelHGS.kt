@@ -10,34 +10,27 @@ class ParallelHGS(
     problem: Problem,
     driverBuilder: DriverBuilder<*>,
     population: Population,
-    parameters: HGSConfiguration
+    parameters: HGSConfiguration,
+    nodeFactory: NodeFactory = DefaultNodeFactory(),
+    budget: Int? = null
 ) :
-    HGS(problem, driverBuilder, population, parameters) {
+    HGS(problem, driverBuilder, population, parameters, nodeFactory, budget) {
 
-    override fun runMetaepoch() {
-        runBlocking {
-            val costs = levelNodes.values.flatten()
+    override fun runMetaepoch(): Boolean {
+        return runBlocking {
+            val nodeCosts = levelNodes.values.flatten()
                 .map { node ->
                     async(Dispatchers.Default) {
                         val cost = node.runMetaepoch()
-                        calculateCost(node.level, cost)
+                        Pair(node, calculateCost(node.level, cost))
                     }
                 }
-            numberOfEvaluations = costs.map { it.await() }.sum()
-        }
-    }
+            val successfulNodes = nodeCosts.map { it.await() }
+                .takeWhile { !isBudgetMet() }
+                .onEach { (_, cost) -> numberOfEvaluations += cost }
+                .onEach { (node, _) -> finalizedPopulations[node] = node.finalizedPopulation.toList() }
 
-    override fun createNode(
-        level: Int,
-        sproutPopulation: Population
-    ): ParallelNode {
-        return ParallelNode(
-            problem = problem,
-            problemReferenceSet = problemReferenceSet,
-            driverBuilder = driverBuilder,
-            level = level,
-            parameters = parameters,
-            population = sproutPopulation
-        )
+            return@runBlocking successfulNodes.count() == nodes.size
+        }
     }
 }

@@ -2,7 +2,6 @@ package pl.edu.agh.kemo.simulation
 
 import org.moeaframework.Executor
 import org.moeaframework.Instrumenter
-import org.moeaframework.algorithm.PeriodicAction
 import org.moeaframework.analysis.collector.Accumulator
 import org.moeaframework.analysis.plot.Plot
 import org.moeaframework.core.Settings
@@ -18,10 +17,11 @@ import java.util.EnumSet
 import kotlin.system.measureTimeMillis
 
 abstract class Simulation(
-    protected val repetitions : Int = 10,
-    protected val problems : List<String>,
-    protected val algorithms : List<String>,
-    protected val hgsTypes : EnumSet<HGSType>
+    protected val repetitions: Int = 10,
+    protected val problems: List<String>,
+    protected val algorithms: List<String>,
+    protected val hgsTypes: EnumSet<HGSType>,
+    private val metrics: EnumSet<QualityIndicator> = EnumSet.allOf(QualityIndicator::class.java)
 ) {
     private val log = loggerFor<Simulation>()
 
@@ -43,75 +43,22 @@ abstract class Simulation(
             val algorithmsAccumulators = mutableMapOf<String, Accumulator>()
 
             for (algorithmName in algorithms) {
-                println("Processing... $algorithmName, $problemName")
+                log.info("Processing... $algorithmName, $problemName")
 
                 val hgsAlgorithms = hgsTypes.map { "${it.shortName}+$algorithmName" }
-
                 val algorithmVariants = hgsAlgorithms + algorithmName
-
                 val resultAccumulators = algorithmVariants.associateWith { mutableListOf<Accumulator>() }
 
                 for (runNo in 1..repetitions) {
 
                     for (algorithmVariant in algorithmVariants) {
-                        val instrumenter = Instrumenter()
-                            .withProblem(problemName)
-                            .attachHypervolumeCollector()
-                            .attachInvertedGenerationalDistanceCollector()
-                            .also { configureInstrumenter(it) }
-
-
-                        val runTime = measureTimeMillis {
-                            Executor().withProblem(problemName)
-                                .withAlgorithm(algorithmVariant)
-                                .withProperty("populationSize", 64)
-                                .withInstrumenter(instrumenter)
-                                .also { configureExecutor(it) }
-                                .run()
-                        }
-
-                        algorithmTimes[algorithmVariant] = (algorithmTimes[algorithmVariant] ?: 0) + runTime
-                        resultAccumulators[algorithmVariant]?.add(instrumenter.lastAccumulator)
+                        log.info("Processing... $algorithmVariant")
+                        runAlgorithmVariant(problemName, algorithmVariant, algorithmTimes, resultAccumulators)
                     }
-
-                    val averageAccumulators = resultAccumulators.mapValues { it.value.average() }
-                    algorithmsAccumulators.putAll(averageAccumulators)
-
-                    resultAccumulators.forEach { (variant, accumulators) ->
-                        log.debug("$problemName : $variant:")
-                        accumulators.forEach {
-                            log.debug("Accumulator for run #${accumulators.indexOf(it)}")
-                            log.debug(it.toCSV())
-                        }
-                    }
-                    averageAccumulators.forEach { (variant, accumulator) ->
-                        winnerCounter.update(accumulator, variant, problemName)
-                    }
-
-                    listOf("InvertedGenerationalDistance", "Hypervolume")
-                        .forEach { metric ->
-                            val plot = Plot().apply {
-                                averageAccumulators.forEach { (variant, accumulator) ->
-                                    add(variant, accumulator, metric)
-                                }
-                                setTitle(algorithmName)
-                            }
-                            plot.save("plots/$algorithmName/${problemName}_$metric.png".toExistingFilepath())
-                        }
+                    val averageAccumulators = updateStatistics(resultAccumulators, algorithmsAccumulators, problemName)
+                    saveAlgorithmPlots(averageAccumulators, algorithmName, problemName)
                 }
-
-                val summaryHvPlot = Plot()
-                val summaryIgdPlot = Plot()
-
-                algorithmsAccumulators.forEach {
-                    summaryHvPlot.add(it.key, it.value, "Hypervolume")
-                    summaryIgdPlot.add(it.key, it.value, "InvertedGenerationalDistance")
-                }
-                summaryHvPlot.setTitle("$problemName (Hypervolume)")
-                    .save("plots/summary/${problemName}_hv.png".toExistingFilepath())
-                summaryIgdPlot.setTitle("$problemName (IGD)")
-                    .save("plots/summary/${problemName}_igd.png".toExistingFilepath())
-
+                saveSummaryPlots(algorithmsAccumulators, problemName)
             }
 
             log.info("## GLOBAL SUMMARY")
@@ -123,7 +70,93 @@ abstract class Simulation(
         }
     }
 
+    private fun runAlgorithmVariant(
+        problemName: String,
+        algorithmVariant: String,
+        algorithmTimes: MutableMap<String, Long>,
+        resultAccumulators: Map<String, MutableList<Accumulator>>
+    ) {
+        val instrumenter = Instrumenter()
+            .withProblem(problemName)
+            .attachHypervolumeCollector()
+            .attachInvertedGenerationalDistanceCollector()
+            .attachSpacingCollector()
+            .also { configureInstrumenter(it) }
+
+
+        val runTime = measureTimeMillis {
+            Executor().withProblem(problemName)
+                .withAlgorithm(algorithmVariant)
+                .withProperty("populationSize", 64)
+                .withInstrumenter(instrumenter)
+                .also { configureExecutor(it) }
+                .run()
+        }
+
+        algorithmTimes[algorithmVariant] = (algorithmTimes[algorithmVariant] ?: 0) + runTime
+        resultAccumulators[algorithmVariant]?.add(instrumenter.lastAccumulator)
+    }
+
+    private fun updateStatistics(
+        resultAccumulators: Map<String, MutableList<Accumulator>>,
+        algorithmsAccumulators: MutableMap<String, Accumulator>,
+        problemName: String
+    ): Map<String, Accumulator> {
+        val averageAccumulators = resultAccumulators.mapValues { it.value.average() }
+        algorithmsAccumulators.putAll(averageAccumulators)
+
+        averageAccumulators.forEach { (variant, accumulator) ->
+            log.debug("$problemName : $variant:")
+            log.debug("Average accumulator for variant: $variant")
+            log.debug(accumulator.toCSV())
+
+            winnerCounter.update(accumulator, variant, problemName)
+        }
+        return averageAccumulators
+    }
+
+    private fun saveAlgorithmPlots(
+        averageAccumulators: Map<String, Accumulator>,
+        algorithmName: String,
+        problemName: String
+    ) {
+        metrics
+            .forEach { metric ->
+                val plot = Plot().apply {
+                    averageAccumulators.forEach { (variant, accumulator) ->
+                        add(variant, accumulator, metric.fullName)
+                    }
+                    setTitle(algorithmName)
+                }
+                plot.save("plots/$algorithmName/${problemName}_${metric.shortName}.png".toExistingFilepath())
+            }
+    }
+
+    private fun saveSummaryPlots(
+        algorithmsAccumulators: MutableMap<String, Accumulator>,
+        problemName: String
+    ) {
+        for (metric in metrics) {
+            val summaryPlot = Plot().apply {
+                algorithmsAccumulators.forEach {
+                    add(it.key, it.value, metric.fullName)
+                }
+                setTitle("$problemName (${metric.fullName})")
+            }
+            summaryPlot.save("plots/summary/${problemName}_${metric.shortName}.png".toExistingFilepath())
+        }
+    }
+
     abstract fun configureInstrumenter(instrumenter: Instrumenter): Instrumenter
 
-    abstract fun configureExecutor(executor: Executor) : Executor
+    abstract fun configureExecutor(executor: Executor): Executor
 }
+
+enum class QualityIndicator(val fullName: String, val shortName: String) {
+    HYPERVOLUME("Hypervolume", "hv"),
+    IGD("InvertedGenerationalDistance", "igd"),
+    SPACING("Spacing", "spacing")
+}
+
+fun String.toQualityIndicator(): QualityIndicator = QualityIndicator.values()
+    .find { it.fullName == this } ?: throw IllegalArgumentException("Unsupported metric: $this")

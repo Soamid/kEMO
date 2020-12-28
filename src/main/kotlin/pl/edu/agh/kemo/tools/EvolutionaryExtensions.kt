@@ -7,7 +7,9 @@ import org.moeaframework.core.Population
 import org.moeaframework.core.Solution
 import org.moeaframework.core.variable.RealVariable
 import pl.edu.agh.kemo.algorithm.Node
-import pl.edu.agh.kemo.algorithm.ParallelNode
+import kotlin.coroutines.EmptyCoroutineContext.fold
+import kotlin.math.pow
+import kotlin.math.sqrt
 
 fun <T> Iterable<T>.sample(amount: Int): List<T> = shuffled()
     .subList(0, amount)
@@ -66,27 +68,40 @@ fun List<Accumulator>.average(): Accumulator {
             .forEach { metric ->
                 val results =
                     map { accumulator ->
-                    val samplesCount = if (metric in accumulator.keySet()) accumulator.size(metric) else 0
-                    (0 until samplesCount).map { accumulator[metric, it] as Number }
-                }
-                val minSamplesCount = results.map { it.size }.min()
+                        val samplesCount = if (metric in accumulator.keySet()) accumulator.size(metric) else 0
+                        (0 until samplesCount).map { accumulator[metric, it] as Number }
+                    }
+                val minSamplesCount = results.map { it.size }.minOrNull()
 
                 val runResults = (0 until minSamplesCount!!).map { runNo ->
                     val singleSampleResults = results.asSequence()
                         .filter { it.size > runNo }
                         .map { it[runNo].toDouble() }
                     when (metric) {
-                        "NFE" -> singleSampleResults.max()
-                        else -> singleSampleResults.average()
+                        "NFE" -> Result(singleSampleResults.maxOrNull() ?: 0.0, 0.0)
+                        else -> {
+                            Result(singleSampleResults.average(), singleSampleResults.standardDev())
+                        }
                     }
                 }
-                runResults.forEach { meanAccumulator.add(metric, it) }
+                runResults.forEach { meanAccumulator.add(metric, it.average)
+                meanAccumulator.add("${metric}_error", it.error)}
             }
     }
     return meanAccumulator
 }
 
-fun Accumulator.minSize() : Int =
+data class Result(val average: Double, val error : Double)
+
+fun Sequence<Double>.standardDev(): Double {
+    val mean = average()
+    return fold(0.0, { accumulator, next -> accumulator + (next - mean).pow(2.0) })
+        .let {
+            sqrt(it / count())
+        }
+}
+
+fun Accumulator.minSize(): Int =
     keySet().asSequence()
         .map { size(it) }
         .min()

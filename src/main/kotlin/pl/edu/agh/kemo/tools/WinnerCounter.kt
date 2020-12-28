@@ -1,6 +1,8 @@
 package pl.edu.agh.kemo.tools
 
 import org.moeaframework.analysis.collector.Accumulator
+import pl.edu.agh.kemo.simulation.QualityIndicator
+import pl.edu.agh.kemo.simulation.toQualityIndicator
 import kotlin.math.max
 import kotlin.math.min
 
@@ -14,9 +16,13 @@ class WinnerCounter {
     val winnersData = mutableMapOf<MetricEntry, MutableMap<String, WinningAlgorithm>>()
 
     fun update(resultsAccumulator: Accumulator, algorithm: String, problem: String) {
-        resultsAccumulator.keySet().forEach { metric ->
+        resultsAccumulator.keySet()
+            .filter { !it.endsWith("_error") }
+            .forEach { metric ->
             val samplesCount = resultsAccumulator.size(metric)
-            val metricValue = (resultsAccumulator[metric, samplesCount - 1] as Number).toDouble()
+
+            // we take last but one result in order to compare results not exceeding the budget
+            val metricValue = (resultsAccumulator[metric, samplesCount - 2] as Number).toDouble()
 
             val metricEntry = MetricEntry(metric, 0)
             val algorithmsMap = winnersData.getOrPut(metricEntry, { mutableMapOf() })
@@ -48,9 +54,14 @@ class WinnerCounter {
     }
 }
 
-fun bestMetricValue(metric: String, value1: Double, value2: Double): Double = when (metric) {
-    "Hypervolume" -> max(value1, value2)
-    "InvertedGenerationalDistance" -> min(value1, value2)
-    "NFE" -> max(value1, value2)
-    else -> throw IllegalArgumentException("Unknown metric: $metric")
+fun bestMetricValue(metric: String, value1: Double, value2: Double): Double {
+    if(metric == "NFE") {
+        return max(value1, value2)
+    }
+
+    return when (metric.toQualityIndicator()) {
+        QualityIndicator.HYPERVOLUME -> max(value1, value2)
+        QualityIndicator.IGD -> min(value1, value2)
+        QualityIndicator.SPACING -> min(value1, value2)
+    }
 }

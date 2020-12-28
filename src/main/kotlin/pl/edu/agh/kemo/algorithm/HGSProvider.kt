@@ -10,12 +10,13 @@ import org.moeaframework.core.Problem
 import org.moeaframework.core.operator.RandomInitialization
 import org.moeaframework.core.spi.AlgorithmProvider
 import org.moeaframework.util.TypedProperties
-import java.lang.IllegalArgumentException
 import java.util.Properties
+
+val MAX_EVALUATIONS_PROPERTY = "maxEvaluations"
 
 enum class HGSType(val shortName: String) {
 
-    CLASSIC("HGS"), PARALLEL("PHGS")
+    CLASSIC("HGS"), PARALLEL("PHGS"), HOPSO("HOPSO")
 }
 
 class HGSProvider : AlgorithmProvider() {
@@ -31,7 +32,7 @@ class HGSProvider : AlgorithmProvider() {
         val typedProperties = TypedProperties(properties)
         val numberOfVariables = problem.numberOfVariables
 
-        if (name.startsWith("HGS") || name.startsWith("PHGS")) {
+        if (name.isHGSName()) {
             val driverName = name.substringAfter('+')
             val driverProvider = driversMapping[driverName]
                 ?: throw IllegalArgumentException("Unknown driver: $driverName")
@@ -60,23 +61,39 @@ class HGSProvider : AlgorithmProvider() {
                 .let { Population(it) }
 
             return when {
-                name.startsWith("HGS") -> HGS(
+                name.startsWith(HGSType.CLASSIC) -> HGS(
                     population = population,
                     driverBuilder = driverProvider(),
                     problem = problem,
-                    parameters = hgsConfig
+                    parameters = hgsConfig,
+                    budget = typedProperties.getInt(MAX_EVALUATIONS_PROPERTY, Int.MAX_VALUE)
                 )
-                name.startsWith("PHGS") -> ParallelHGS(
+                name.startsWith(HGSType.PARALLEL) -> ParallelHGS(
                     population = population,
                     driverBuilder = driverProvider(),
                     problem = problem,
-                    parameters = hgsConfig
+                    parameters = hgsConfig,
+                    budget = typedProperties.getInt(MAX_EVALUATIONS_PROPERTY, Int.MAX_VALUE)
                 )
-                else -> throw IllegalArgumentException("No such algorithm")
+                name.startsWith(HGSType.HOPSO) -> ParallelHGS(
+                    population = population,
+                    driverBuilder = driverProvider(),
+                    problem = problem,
+                    parameters = hgsConfig,
+                    nodeFactory = HopsoNodeFactory(),
+                    budget = typedProperties.getInt(MAX_EVALUATIONS_PROPERTY, Int.MAX_VALUE)
+                )
+                else -> throw IllegalArgumentException("No such algorithm: $name")
             }
         }
         return null
     }
+
+    private fun String.isHGSName() : Boolean = HGSType.values()
+        .map { it.shortName }
+        .any { startsWith(it) }
+
+    private fun String.startsWith(hgsType: HGSType) : Boolean = startsWith(hgsType.shortName)
 
     private fun createMutationRates(numberOfVariables: Int): List<Double> {
         return (0..2).map { 1.0 / numberOfVariables }

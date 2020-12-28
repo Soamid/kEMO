@@ -33,13 +33,16 @@ open class Node(
         private set
 
     var delegates: List<Solution> = listOf()
-        private set
+        protected set
 
     var previousHypervolume: Double? = null
         private set
 
     var hypervolume: Double = 0.0
         private set
+
+    open val finalizedPopulation: Population
+        get() = population
 
     private val problem: BlurredProblem
 
@@ -62,7 +65,7 @@ open class Node(
         recalculateCenter()
     }
 
-    fun runMetaepoch(): Int {
+    open fun runMetaepoch(): Int {
         repeat(parameters.metaepochLength) {
             driver.step()
         }
@@ -83,7 +86,7 @@ open class Node(
         }
         relativeHypervolume?.let {
             hypervolume = resultHypervolume - it
-            if(hypervolume > 0.0) {
+            if (hypervolume > 0.0) {
 //                Plot()
 //                    .add("current pop", nondominatedPopulation)
 //                    .add("reference set", referenceSet)
