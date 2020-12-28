@@ -1,5 +1,6 @@
 package pl.edu.agh.kemo.tools
 
+import org.moeaframework.Analyzer
 import org.moeaframework.analysis.collector.Accumulator
 import pl.edu.agh.kemo.simulation.QualityIndicator
 import pl.edu.agh.kemo.simulation.toQualityIndicator
@@ -13,34 +14,61 @@ data class WinningAlgorithm(val algorithm: String, val metricValue: Double)
 
 class WinnerCounter {
     val log = loggerFor<WinnerCounter>()
-    val winnersData = mutableMapOf<MetricEntry, MutableMap<String, WinningAlgorithm>>()
+    val allWinnersData = mutableMapOf<MetricEntry, MutableMap<String, WinningAlgorithm>>()
 
-    fun update(resultsAccumulator: Accumulator, algorithm: String, problem: String) {
+    val significantWinnersData = mutableMapOf<MetricEntry, MutableMap<String, WinningAlgorithm>>()
+
+    fun update(resultsAccumulator: Accumulator, algorithm: String, problem: String, analyzer: Analyzer) {
         resultsAccumulator.keySet()
-            .filter { !it.endsWith("_error") }
+            .filter { isMetricValid(it) }
             .forEach { metric ->
-            val samplesCount = resultsAccumulator.size(metric)
+                val samplesCount = resultsAccumulator.size(metric)
 
-            // we take last but one result in order to compare results not exceeding the budget
-            val metricValue = (resultsAccumulator[metric, samplesCount - 2] as Number).toDouble()
+                // we take last but one result in order to compare results not exceeding the budget
+                val metricValue = (resultsAccumulator[metric, samplesCount - 2] as Number).toDouble()
 
-            val metricEntry = MetricEntry(metric, 0)
-            val algorithmsMap = winnersData.getOrPut(metricEntry, { mutableMapOf() })
+                val metricEntry = MetricEntry(metric, 0)
+                val algorithmsMap = allWinnersData.getOrPut(metricEntry, { mutableMapOf() })
+                val significantAlgorithmsMap =
+                    significantWinnersData.getOrPut(metricEntry, { mutableMapOf() })
 
-            val winningAlgorithm = algorithmsMap[problem]
-            log.debug("updating for $algorithm, $metric value = $metricValue, current = $winningAlgorithm")
-            if (winningAlgorithm == null || bestMetricValue(
-                    metric,
-                    winningAlgorithm.metricValue,
-                    metricValue
-                ) == metricValue
-            ) {
-                algorithmsMap[problem] = WinningAlgorithm(algorithm, metricValue)
+                val winningAlgorithm = algorithmsMap[problem]
+                log.debug("updating for $algorithm, $metric value = $metricValue, current = $winningAlgorithm")
+                if (winningAlgorithm == null || bestMetricValue(
+                        metric,
+                        winningAlgorithm.metricValue,
+                        metricValue
+                    ) == metricValue
+                ) {
+                    algorithmsMap[problem] = WinningAlgorithm(algorithm, metricValue)
+
+                    if (isStatisticallySignificant(analyzer, algorithm, metric)) {
+                        significantAlgorithmsMap[problem] = WinningAlgorithm(algorithm, metricValue)
+                    }
+                }
             }
-        }
+    }
+
+    private fun isMetricValid(metric: String) = !metric.endsWith("_error") && metric != "NFE"
+
+    private fun isStatisticallySignificant(
+        analyzer: Analyzer,
+        algorithm: String,
+        metric: String?
+    ): Boolean {
+        val indifferentAlgorithms = analyzer.analysis[algorithm].get(metric).indifferentAlgorithms
+        return indifferentAlgorithms.isEmpty()  // indifferentAlgorithms.size < analyzer.analysis.algorithms.size
     }
 
     fun printSummary() {
+        println("All winners data:")
+        printSummary(allWinnersData)
+
+        println("Statistically significant winners data:")
+        printSummary(significantWinnersData)
+    }
+
+    private fun printSummary(winnersData: Map<MetricEntry, MutableMap<String, WinningAlgorithm>>) {
         winnersData.keys.forEach { metricEntry ->
             println("${metricEntry.metric}, run=${metricEntry.runNo}")
             winnersData[metricEntry]?.let { problemMap ->
@@ -55,7 +83,7 @@ class WinnerCounter {
 }
 
 fun bestMetricValue(metric: String, value1: Double, value2: Double): Double {
-    if(metric == "NFE") {
+    if (metric == "NFE") {
         return max(value1, value2)
     }
 

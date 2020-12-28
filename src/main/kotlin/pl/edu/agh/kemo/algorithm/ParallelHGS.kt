@@ -2,6 +2,11 @@ package pl.edu.agh.kemo.algorithm
 
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
+import kotlinx.coroutines.flow.asFlow
+import kotlinx.coroutines.flow.count
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.onEach
+import kotlinx.coroutines.flow.takeWhile
 import kotlinx.coroutines.runBlocking
 import org.moeaframework.core.Population
 import org.moeaframework.core.Problem
@@ -25,7 +30,8 @@ class ParallelHGS(
                         Pair(node, calculateCost(node.level, cost))
                     }
                 }
-            val successfulNodes = nodeCosts.map { it.await() }
+            val successfulNodes = nodeCosts.asFlow()
+                .map { it.await() }
                 .takeWhile { !isBudgetMet() }
                 .onEach { (_, cost) -> numberOfEvaluations += cost }
                 .onEach { (node, _) -> finalizedPopulations[node] = node.finalizedPopulation.toList() }

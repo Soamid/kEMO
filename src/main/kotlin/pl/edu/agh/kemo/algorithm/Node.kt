@@ -50,6 +50,8 @@ open class Node(
 
     private val log = loggerFor<Node>()
 
+    private var previousNumberOfEvaluations: Int = 0
+
     init {
         this.problem = BlurredProblem(problem, parameters.fitnessErrors[level])
         this.driver =
@@ -75,7 +77,9 @@ open class Node(
         updateDominatedHypervolume(NondominatedPopulation(population))
         recalculateCenter()
 
-        return driver.numberOfEvaluations
+        val epochCost = driver.numberOfEvaluations - previousNumberOfEvaluations
+        previousNumberOfEvaluations = driver.numberOfEvaluations
+        return epochCost
     }
 
     private fun updateDominatedHypervolume(nondominatedPopulation: NondominatedPopulation) {

@@ -1,5 +1,6 @@
 package pl.edu.agh.kemo.simulation
 
+import org.moeaframework.Analyzer
 import org.moeaframework.Executor
 import org.moeaframework.Instrumenter
 import org.moeaframework.analysis.collector.Accumulator
@@ -49,15 +50,23 @@ abstract class Simulation(
                 val algorithmVariants = hgsAlgorithms + algorithmName
                 val resultAccumulators = algorithmVariants.associateWith { mutableListOf<Accumulator>() }
 
-                for (runNo in 1..repetitions) {
+                val analyzer = Analyzer()
+                    .withProblem(problem)
+                    .includeInvertedGenerationalDistance()
+                    .includeHypervolume()
+                    .includeSpacing()
+                    .showStatisticalSignificance()
 
+                for (runNo in 1..repetitions) {
                     for (algorithmVariant in algorithmVariants) {
                         log.info("Processing... $algorithmVariant")
-                        runAlgorithmVariant(problemName, algorithmVariant, algorithmTimes, resultAccumulators)
+                        runAlgorithmVariant(problemName, algorithmVariant, algorithmTimes, resultAccumulators, analyzer)
                     }
-                    val averageAccumulators = updateStatistics(resultAccumulators, algorithmsAccumulators, problemName)
-                    saveAlgorithmPlots(averageAccumulators, algorithmName, problemName)
                 }
+                val averageAccumulators = updateStatistics(resultAccumulators, algorithmsAccumulators, problemName, analyzer)
+                saveAlgorithmPlots(averageAccumulators, algorithmName, problemName)
+
+                analyzer.printAnalysis()
                 saveSummaryPlots(algorithmsAccumulators, problemName)
             }
 
@@ -74,7 +83,8 @@ abstract class Simulation(
         problemName: String,
         algorithmVariant: String,
         algorithmTimes: MutableMap<String, Long>,
-        resultAccumulators: Map<String, MutableList<Accumulator>>
+        resultAccumulators: Map<String, MutableList<Accumulator>>,
+        analyzer: Analyzer
     ) {
         val instrumenter = Instrumenter()
             .withProblem(problemName)
@@ -85,12 +95,13 @@ abstract class Simulation(
 
 
         val runTime = measureTimeMillis {
-            Executor().withProblem(problemName)
+            val population = Executor().withProblem(problemName)
                 .withAlgorithm(algorithmVariant)
                 .withProperty("populationSize", 64)
                 .withInstrumenter(instrumenter)
                 .also { configureExecutor(it) }
                 .run()
+            analyzer.add(algorithmVariant, population)
         }
 
         algorithmTimes[algorithmVariant] = (algorithmTimes[algorithmVariant] ?: 0) + runTime
@@ -100,7 +111,8 @@ abstract class Simulation(
     private fun updateStatistics(
         resultAccumulators: Map<String, MutableList<Accumulator>>,
         algorithmsAccumulators: MutableMap<String, Accumulator>,
-        problemName: String
+        problemName: String,
+        analyzer: Analyzer
     ): Map<String, Accumulator> {
         val averageAccumulators = resultAccumulators.mapValues { it.value.average() }
         algorithmsAccumulators.putAll(averageAccumulators)
@@ -110,7 +122,7 @@ abstract class Simulation(
             log.debug("Average accumulator for variant: $variant")
             log.debug(accumulator.toCSV())
 
-            winnerCounter.update(accumulator, variant, problemName)
+            winnerCounter.update(accumulator, variant, problemName, analyzer)
         }
         return averageAccumulators
     }
