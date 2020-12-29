@@ -13,15 +13,16 @@ class BudgetSimulation(
     problems: List<String>,
     algorithms: List<String>,
     hgsTypes: EnumSet<HGSType>,
-    metrics: EnumSet<QualityIndicator> = EnumSet.allOf(QualityIndicator::class.java)
-) : Simulation(repetitions, problems, algorithms, hgsTypes, metrics) {
+    metrics: EnumSet<QualityIndicator> = EnumSet.allOf(QualityIndicator::class.java),
+    startRunNo: Int = 0
+) : Simulation(repetitions, problems, algorithms, hgsTypes, metrics, startRunNo) {
 
     override fun configureInstrumenter(instrumenter: Instrumenter): Instrumenter {
         return instrumenter.withFrequency(samplingFrequency)
             .withFrequencyType(PeriodicAction.FrequencyType.EVALUATIONS)
     }
 
-    override fun configureExecutor(problem: String, algorithm: String, runNo : Int, executor: Executor): Executor {
+    override fun configureExecutor(problem: String, algorithm: String, runNo: Int, executor: Executor): Executor {
         val taskName = "$problem::$algorithm ($runNo)"
         return executor.withMaxEvaluations(budget)
             .withProgressListener(ProgressDisplay(taskName, budget.toLong()) { event -> event.currentNFE.toLong() })

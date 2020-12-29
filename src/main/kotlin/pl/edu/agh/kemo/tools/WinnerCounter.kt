@@ -1,6 +1,6 @@
 package pl.edu.agh.kemo.tools
 
-import org.moeaframework.Analyzer
+import org.moeaframework.AlgorithmStats
 import org.moeaframework.analysis.collector.Accumulator
 import pl.edu.agh.kemo.simulation.QualityIndicator
 import pl.edu.agh.kemo.simulation.toQualityIndicator
@@ -18,7 +18,12 @@ class WinnerCounter {
 
     val significantWinnersData = mutableMapOf<MetricEntry, MutableMap<String, WinningAlgorithm>>()
 
-    fun update(resultsAccumulator: Accumulator, algorithm: String, problem: String, analyzer: Analyzer) {
+    fun update(
+        resultsAccumulator: Accumulator,
+        algorithm: String,
+        problem: String,
+        finalEpochAlgorithmResults: Map<String, AlgorithmStats>
+    ) {
         resultsAccumulator.keySet()
             .filter { isMetricValid(it) }
             .forEach { metric ->
@@ -42,7 +47,7 @@ class WinnerCounter {
                 ) {
                     algorithmsMap[problem] = WinningAlgorithm(algorithm, metricValue)
 
-                    if (isStatisticallySignificant(analyzer, algorithm, metric)) {
+                    if (isStatisticallySignificant(finalEpochAlgorithmResults, algorithm, metric)) {
                         significantAlgorithmsMap[problem] = WinningAlgorithm(algorithm, metricValue)
                     }
                 }
@@ -52,12 +57,14 @@ class WinnerCounter {
     private fun isMetricValid(metric: String) = !metric.endsWith("_error") && metric != "NFE"
 
     private fun isStatisticallySignificant(
-        analyzer: Analyzer,
+        finalEpochAlgorithmResults: Map<String, AlgorithmStats>,
         algorithm: String,
         metric: String?
     ): Boolean {
-        val indifferentAlgorithms = analyzer.analysis[algorithm].get(metric).indifferentAlgorithms
-        return indifferentAlgorithms.isEmpty()  // indifferentAlgorithms.size < analyzer.analysis.algorithms.size
+        val indifferentAlgorithms = finalEpochAlgorithmResults[algorithm]?.get(metric)?.indifferentAlgorithms
+        return indifferentAlgorithms?.isEmpty()
+            ?: throw IllegalArgumentException("No such metric or algorithm: $algorithm, $metric")
+        // indifferentAlgorithms.size < analyzer.analysis.algorithms.size
     }
 
     fun printSummary() {

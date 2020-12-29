@@ -35,6 +35,7 @@ dependencies {
     implementation(group = "org.slf4j", name="slf4j-log4j12", version= "1.7.30")
     implementation (group= "me.tongfei", name="progressbar", version="0.9.0")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.4.2")
+    implementation("com.github.doyaaaaaken:kotlin-csv-jvm:0.15.0")
     // https://mvnrepository.com/artifact/me.tongfei/progressbar
 
 

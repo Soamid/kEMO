@@ -23,8 +23,9 @@ class TimeSimulation(
     problems: List<String>,
     algorithms: List<String>,
     hgsTypes: EnumSet<HGSType>,
-    metrics: EnumSet<QualityIndicator> = EnumSet.allOf(QualityIndicator::class.java)
-) : Simulation(repetitions, problems, algorithms, hgsTypes, metrics) {
+    metrics: EnumSet<QualityIndicator> = EnumSet.allOf(QualityIndicator::class.java),
+    startRunNo: Int = 0
+) : Simulation(repetitions, problems, algorithms, hgsTypes, metrics, startRunNo) {
 
     override fun configureInstrumenter(instrumenter: Instrumenter): Instrumenter {
         return instrumenter.withFrequency(samplingFrequency)

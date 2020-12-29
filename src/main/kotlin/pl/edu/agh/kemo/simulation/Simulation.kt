@@ -1,6 +1,5 @@
 package pl.edu.agh.kemo.simulation
 
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.asCoroutineDispatcher
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
@@ -15,23 +14,28 @@ import org.moeaframework.core.spi.ProblemFactory
 import pl.edu.agh.kemo.algorithm.HGSProvider
 import pl.edu.agh.kemo.algorithm.HGSType
 import pl.edu.agh.kemo.tools.WinnerCounter
+import pl.edu.agh.kemo.tools.algorithmVariants
 import pl.edu.agh.kemo.tools.average
 import pl.edu.agh.kemo.tools.loggerFor
+import pl.edu.agh.kemo.tools.withMetrics
 import toExistingFilepath
 import java.util.EnumSet
 import java.util.concurrent.Executors
 import kotlin.system.measureTimeMillis
+
+
+val SIMULATION_DISPATCHER =
+    Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors()).asCoroutineDispatcher()
 
 abstract class Simulation(
     protected val repetitions: Int = 10,
     protected val problems: List<String>,
     protected val algorithms: List<String>,
     protected val hgsTypes: EnumSet<HGSType>,
-    private val metrics: EnumSet<QualityIndicator>
+    private val metrics: EnumSet<QualityIndicator>,
+    private val startRunNo: Int
 ) {
     private val log = loggerFor<Simulation>()
-
-    private val winnerCounter = WinnerCounter()
 
     fun run() {
         AlgorithmFactory.getInstance().addProvider(HGSProvider())
@@ -51,44 +55,26 @@ abstract class Simulation(
             for (algorithmName in algorithms) {
                 log.info("Processing... $algorithmName, $problemName")
 
-                val hgsAlgorithms = hgsTypes.map { "${it.shortName}+$algorithmName" }
-                val algorithmVariants = hgsAlgorithms + algorithmName
+                val algorithmVariants = hgsTypes.algorithmVariants(algorithmName)
                 val resultAccumulators = algorithmVariants.associateWith { mutableListOf<Accumulator>() }
 
-                val analyzer = Analyzer()
-                    .withProblem(problem)
-                    .also { if (QualityIndicator.IGD in metrics) it.includeInvertedGenerationalDistance() }
-                    .also { if (QualityIndicator.HYPERVOLUME in metrics) it.includeHypervolume() }
-                    .also { if (QualityIndicator.SPACING in metrics) it.includeSpacing() }
-                    .showStatisticalSignificance()
-
                 runBlocking {
-                    for (runNo in 1..repetitions) {
+                    for (runNo in startRunNo..(startRunNo + repetitions)) {
                         for (algorithmVariant in algorithmVariants) {
-                            launch(simulationDispatcher()) {
+                            launch(SIMULATION_DISPATCHER) {
                                 log.info("Processing... $algorithmVariant")
                                 runAlgorithmVariant(
                                     problemName,
                                     algorithmVariant,
                                     runNo,
                                     algorithmTimes,
-                                    resultAccumulators,
-                                    analyzer
-                                )
+                                    resultAccumulators)
                             }
                         }
                     }
                 }
-                val averageAccumulators =
-                    updateStatistics(resultAccumulators, algorithmsAccumulators, problemName, analyzer)
-                saveAlgorithmPlots(averageAccumulators, algorithmName, problemName)
-
-                analyzer.printAnalysis()
-                saveSummaryPlots(algorithmsAccumulators, problemName)
+                updateStatistics(resultAccumulators, algorithmsAccumulators, problemName)
             }
-
-            log.info("## GLOBAL SUMMARY")
-            winnerCounter.printSummary()
 
             algorithmTimes.forEach { algorithm, elapsedTime ->
                 log.info("$algorithm elapsed time = $elapsedTime")
@@ -96,16 +82,12 @@ abstract class Simulation(
         }
     }
 
-    private fun simulationDispatcher() =
-        Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors()).asCoroutineDispatcher()
-
     private fun runAlgorithmVariant(
         problemName: String,
         algorithmVariant: String,
         runNo: Int,
         algorithmTimes: MutableMap<String, Long>,
-        resultAccumulators: Map<String, MutableList<Accumulator>>,
-        analyzer: Analyzer
+        resultAccumulators: Map<String, MutableList<Accumulator>>
     ) {
         val instrumenter = Instrumenter()
             .withProblem(problemName)
@@ -121,20 +103,20 @@ abstract class Simulation(
                 .withInstrumenter(instrumenter)
                 .also { configureExecutor(problemName, algorithmVariant, runNo, it) }
                 .run()
-            analyzer.add(algorithmVariant, population)
+            population.save(algorithmVariant, problemName, runNo)
         }
 
         algorithmTimes[algorithmVariant] = (algorithmTimes[algorithmVariant] ?: 0) + runTime
         resultAccumulators[algorithmVariant]?.add(instrumenter.lastAccumulator)
     }
 
-
     private fun updateStatistics(
         resultAccumulators: Map<String, MutableList<Accumulator>>,
         algorithmsAccumulators: MutableMap<String, Accumulator>,
         problemName: String,
-        analyzer: Analyzer
-    ): Map<String, Accumulator> {
+    ) {
+        saveMetrics(resultAccumulators, problemName, startRunNo)
+
         val averageAccumulators = resultAccumulators.mapValues { it.value.average() }
         algorithmsAccumulators.putAll(averageAccumulators)
 
@@ -142,41 +124,6 @@ abstract class Simulation(
             log.debug("$problemName : $variant:")
             log.debug("Average accumulator for variant: $variant")
             log.debug(accumulator.toCSV())
-
-            winnerCounter.update(accumulator, variant, problemName, analyzer)
-        }
-        return averageAccumulators
-    }
-
-    private fun saveAlgorithmPlots(
-        averageAccumulators: Map<String, Accumulator>,
-        algorithmName: String,
-        problemName: String
-    ) {
-        metrics
-            .forEach { metric ->
-                val plot = Plot().apply {
-                    averageAccumulators.forEach { (variant, accumulator) ->
-                        add(variant, accumulator, metric.fullName)
-                    }
-                    setTitle(algorithmName)
-                }
-                plot.save("plots/$algorithmName/${problemName}_${metric.shortName}.png".toExistingFilepath())
-            }
-    }
-
-    private fun saveSummaryPlots(
-        algorithmsAccumulators: MutableMap<String, Accumulator>,
-        problemName: String
-    ) {
-        for (metric in metrics) {
-            val summaryPlot = Plot().apply {
-                algorithmsAccumulators.forEach {
-                    add(it.key, it.value, metric.fullName)
-                }
-                setTitle("$problemName (${metric.fullName})")
-            }
-            summaryPlot.save("plots/summary/${problemName}_${metric.shortName}.png".toExistingFilepath())
         }
     }
 
