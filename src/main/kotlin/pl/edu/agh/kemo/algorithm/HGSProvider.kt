@@ -1,6 +1,10 @@
 package pl.edu.agh.kemo.algorithm
 
+import kemo.driver.DBEADriverBuilder
+import kemo.driver.IBEADriverBuilder
+import kemo.driver.MOEADDriverBuilder
 import kemo.driver.NSGAIIDriverBuilder
+import kemo.driver.NSGAIIIDriverBuilder
 import kemo.driver.OMOPSODriverBuilder
 import kemo.driver.SMPSODriverBuilder
 import kemo.driver.SPEA2DriverBuilder
@@ -23,9 +27,13 @@ class HGSProvider : AlgorithmProvider() {
 
     val driversMapping = mapOf(
         "NSGAII" to ::NSGAIIDriverBuilder,
-        "OMOPSO" to ::OMOPSODriverBuilder,
+        "NSGAIII" to ::NSGAIIIDriverBuilder,
         "SMPSO" to ::SMPSODriverBuilder,
-        "SPEA2" to ::SPEA2DriverBuilder
+        "SPEA2" to ::SPEA2DriverBuilder,
+        "IBEA" to ::IBEADriverBuilder,
+        "MOEAD" to ::MOEADDriverBuilder,
+        "DBEA" to ::DBEADriverBuilder,
+        "OMOPSO" to ::OMOPSODriverBuilder
     )
 
     override fun getAlgorithm(name: String, properties: Properties, problem: Problem): Algorithm? {

@@ -1,6 +1,7 @@
 package kemo.driver
 
-import org.moeaframework.algorithm.SPEA2
+import org.moeaframework.algorithm.IBEA
+import org.moeaframework.core.NondominatedSorting
 import org.moeaframework.core.Population
 import org.moeaframework.core.Problem
 import org.moeaframework.core.Solution
@@ -9,8 +10,7 @@ import pl.edu.agh.kemo.algorithm.Driver
 import pl.edu.agh.kemo.algorithm.DriverBuilder
 import java.util.Properties
 
-
-class SPEA2DriverBuilder : DriverBuilder<SPEA2> {
+class IBEADriverBuilder : DriverBuilder<IBEA> {
 
     override fun create(
         problem: Problem,
@@ -21,21 +21,20 @@ class SPEA2DriverBuilder : DriverBuilder<SPEA2> {
         crossoverRate: Double,
         properties: Properties,
         mantissaBits: Int
-    ): Driver<SPEA2> {
+    ): Driver<IBEA> {
         properties.apply {
             setProperty("pm.distributionIndex", mutationEta.toString())
             setProperty("pm.rate", mutationRate.toString())
             setProperty("sbx.distributionIndex", crossoverEta.toString())
             setProperty("sbx.rate", crossoverRate.toString())
         }
-        return SPEA2Driver(algorithmProvider.getAlgorithm("SPEA2", properties, problem) as SPEA2, mantissaBits)
+        return IBEADriver(algorithmProvider.getAlgorithm("IBEA", properties, problem) as IBEA, mantissaBits)
     }
 }
 
-class SPEA2Driver(algorithm: SPEA2, mantissaBits: Int) : Driver<SPEA2>(algorithm, mantissaBits) {
+class IBEADriver(algorithm: IBEA, mantissaBits: Int) : Driver<IBEA>(algorithm, mantissaBits) {
 
-    override fun nominateDelegates(): List<Solution> =
-        algorithm.population.toList()
+    override fun nominateDelegates(): List<Solution> = algorithm.result.toList()
 
     override fun getPopulation(): Population = algorithm.population
 }

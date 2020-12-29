@@ -22,15 +22,16 @@ class TimeSimulation(
     repetitions: Int = 10,
     problems: List<String>,
     algorithms: List<String>,
-    hgsTypes: EnumSet<HGSType>
-) : Simulation(repetitions, problems, algorithms, hgsTypes) {
+    hgsTypes: EnumSet<HGSType>,
+    metrics: EnumSet<QualityIndicator> = EnumSet.allOf(QualityIndicator::class.java)
+) : Simulation(repetitions, problems, algorithms, hgsTypes, metrics) {
 
     override fun configureInstrumenter(instrumenter: Instrumenter): Instrumenter {
         return instrumenter.withFrequency(samplingFrequency)
             .withFrequencyType(PeriodicAction.FrequencyType.EVALUATIONS)
     }
 
-    override fun configureExecutor(executor: Executor): Executor {
+    override fun configureExecutor(problem: String, algorithm: String, runNo: Int, executor: Executor): Executor {
         return executor.withMaxTime(maxTime)
     }
 }

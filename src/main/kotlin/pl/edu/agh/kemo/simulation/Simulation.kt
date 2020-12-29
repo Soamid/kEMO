@@ -1,5 +1,9 @@
 package pl.edu.agh.kemo.simulation
 
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.asCoroutineDispatcher
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 import org.moeaframework.Analyzer
 import org.moeaframework.Executor
 import org.moeaframework.Instrumenter
@@ -15,6 +19,7 @@ import pl.edu.agh.kemo.tools.average
 import pl.edu.agh.kemo.tools.loggerFor
 import toExistingFilepath
 import java.util.EnumSet
+import java.util.concurrent.Executors
 import kotlin.system.measureTimeMillis
 
 abstract class Simulation(
@@ -22,7 +27,7 @@ abstract class Simulation(
     protected val problems: List<String>,
     protected val algorithms: List<String>,
     protected val hgsTypes: EnumSet<HGSType>,
-    private val metrics: EnumSet<QualityIndicator> = EnumSet.allOf(QualityIndicator::class.java)
+    private val metrics: EnumSet<QualityIndicator>
 ) {
     private val log = loggerFor<Simulation>()
 
@@ -52,18 +57,30 @@ abstract class Simulation(
 
                 val analyzer = Analyzer()
                     .withProblem(problem)
-                    .includeInvertedGenerationalDistance()
-                    .includeHypervolume()
-                    .includeSpacing()
+                    .also { if (QualityIndicator.IGD in metrics) it.includeInvertedGenerationalDistance() }
+                    .also { if (QualityIndicator.HYPERVOLUME in metrics) it.includeHypervolume() }
+                    .also { if (QualityIndicator.SPACING in metrics) it.includeSpacing() }
                     .showStatisticalSignificance()
 
-                for (runNo in 1..repetitions) {
-                    for (algorithmVariant in algorithmVariants) {
-                        log.info("Processing... $algorithmVariant")
-                        runAlgorithmVariant(problemName, algorithmVariant, algorithmTimes, resultAccumulators, analyzer)
+                runBlocking {
+                    for (runNo in 1..repetitions) {
+                        for (algorithmVariant in algorithmVariants) {
+                            launch(simulationDispatcher()) {
+                                log.info("Processing... $algorithmVariant")
+                                runAlgorithmVariant(
+                                    problemName,
+                                    algorithmVariant,
+                                    runNo,
+                                    algorithmTimes,
+                                    resultAccumulators,
+                                    analyzer
+                                )
+                            }
+                        }
                     }
                 }
-                val averageAccumulators = updateStatistics(resultAccumulators, algorithmsAccumulators, problemName, analyzer)
+                val averageAccumulators =
+                    updateStatistics(resultAccumulators, algorithmsAccumulators, problemName, analyzer)
                 saveAlgorithmPlots(averageAccumulators, algorithmName, problemName)
 
                 analyzer.printAnalysis()
@@ -79,27 +96,30 @@ abstract class Simulation(
         }
     }
 
+    private fun simulationDispatcher() =
+        Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors()).asCoroutineDispatcher()
+
     private fun runAlgorithmVariant(
         problemName: String,
         algorithmVariant: String,
+        runNo: Int,
         algorithmTimes: MutableMap<String, Long>,
         resultAccumulators: Map<String, MutableList<Accumulator>>,
         analyzer: Analyzer
     ) {
         val instrumenter = Instrumenter()
             .withProblem(problemName)
-            .attachHypervolumeCollector()
-            .attachInvertedGenerationalDistanceCollector()
-            .attachSpacingCollector()
             .also { configureInstrumenter(it) }
-
+            .also { if (QualityIndicator.IGD in metrics) it.attachInvertedGenerationalDistanceCollector() }
+            .also { if (QualityIndicator.HYPERVOLUME in metrics) it.attachHypervolumeCollector() }
+            .also { if (QualityIndicator.SPACING in metrics) it.attachSpacingCollector() }
 
         val runTime = measureTimeMillis {
             val population = Executor().withProblem(problemName)
                 .withAlgorithm(algorithmVariant)
                 .withProperty("populationSize", 64)
                 .withInstrumenter(instrumenter)
-                .also { configureExecutor(it) }
+                .also { configureExecutor(problemName, algorithmVariant, runNo, it) }
                 .run()
             analyzer.add(algorithmVariant, population)
         }
@@ -107,6 +127,7 @@ abstract class Simulation(
         algorithmTimes[algorithmVariant] = (algorithmTimes[algorithmVariant] ?: 0) + runTime
         resultAccumulators[algorithmVariant]?.add(instrumenter.lastAccumulator)
     }
+
 
     private fun updateStatistics(
         resultAccumulators: Map<String, MutableList<Accumulator>>,
@@ -161,7 +182,7 @@ abstract class Simulation(
 
     abstract fun configureInstrumenter(instrumenter: Instrumenter): Instrumenter
 
-    abstract fun configureExecutor(executor: Executor): Executor
+    abstract fun configureExecutor(problem: String, algorithm: String, runNo: Int, executor: Executor): Executor
 }
 
 enum class QualityIndicator(val fullName: String, val shortName: String) {

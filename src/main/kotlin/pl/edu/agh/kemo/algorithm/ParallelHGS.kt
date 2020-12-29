@@ -8,10 +8,11 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.takeWhile
 import kotlinx.coroutines.runBlocking
+import org.moeaframework.core.NondominatedPopulation
 import org.moeaframework.core.Population
 import org.moeaframework.core.Problem
 
-class ParallelHGS(
+open class ParallelHGS(
     problem: Problem,
     driverBuilder: DriverBuilder<*>,
     population: Population,
@@ -34,9 +35,13 @@ class ParallelHGS(
                 .map { it.await() }
                 .takeWhile { !isBudgetMet() }
                 .onEach { (_, cost) -> numberOfEvaluations += cost }
-                .onEach { (node, _) -> finalizedPopulations[node] = node.finalizedPopulation.toList() }
+                .onEach { (node, _) -> updateFinalizedPopulations(node) }
 
             return@runBlocking successfulNodes.count() == nodes.size
         }
+    }
+
+    protected open fun updateFinalizedPopulations(node: Node) {
+        finalizedPopulations[node] = node.finalizedPopulation.toList()
     }
 }

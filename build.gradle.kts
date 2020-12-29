@@ -33,7 +33,10 @@ dependencies {
     implementation(group = "org.moeaframework", name = "moeaframework", version = "2.13")
     implementation(group = "org.slf4j", name="slf4j-api", version= "1.7.30")
     implementation(group = "org.slf4j", name="slf4j-log4j12", version= "1.7.30")
+    implementation (group= "me.tongfei", name="progressbar", version="0.9.0")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.4.2")
+    // https://mvnrepository.com/artifact/me.tongfei/progressbar
+
 
     api(group="scientifik", name="kmath-core", version = "0.1.3")
     implementation("io.kotest:kotest-runner-console-jvm:4.1.3")
