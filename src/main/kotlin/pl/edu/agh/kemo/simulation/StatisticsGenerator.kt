@@ -9,6 +9,9 @@ import pl.edu.agh.kemo.algorithm.HGSType
 import pl.edu.agh.kemo.tools.WinnerCounter
 import pl.edu.agh.kemo.tools.algorithmVariants
 import pl.edu.agh.kemo.tools.average
+import pl.edu.agh.kemo.tools.bestMetricValue
+import pl.edu.agh.kemo.tools.printMetricsComparisonTable
+import java.lang.IllegalStateException
 import java.util.EnumSet
 
 class StatisticsGenerator(
@@ -49,6 +52,12 @@ class StatisticsGenerator(
         winnerCounter.printSummary()
     }
 
+    fun printLatexComparisonTable() {
+        for (metric in metrics) {
+            printMetricsComparisonTable(problems, algorithmVariants, runRange, metric)
+        }
+    }
+
     private fun calculateAlgorithmResults(problem: String): Map<String, AlgorithmStats> {
         val algorithmResults = mutableMapOf<String, AlgorithmStats>()
         for (algorithmVariant in algorithmVariants) {
@@ -72,11 +81,11 @@ class StatisticsGenerator(
             }
             algorithmResults[algorithmVariant] = algorithmResult
         }
-        calculcateStatitisticalSignificance(algorithmResults)
+        calculateStatisticalSignificance(algorithmResults)
         return algorithmResults
     }
 
-    private fun calculcateStatitisticalSignificance(analyzerResults: Map<String, AlgorithmStats>) {
+    private fun calculateStatisticalSignificance(analyzerResults: Map<String, AlgorithmStats>) {
         val significanceLevel = 0.05
         for (metric in metrics) {
             val indicatorName = metric.fullName

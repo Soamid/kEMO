@@ -18,19 +18,20 @@ fun main() {
             "UF4",
             "UF5",
             "UF6",
-            "UF7",
-            "UF8",
-            "UF9"
+//            "UF7",
+//            "UF8",
+//            "UF9",
 //            "UF11",
 //            "UF12",
 //            "UF13"
         ),
         hgsTypes = EnumSet.of(HGSType.PARALLEL, HGSType.HOPSO),
-        metrics = EnumSet.of(QualityIndicator.HYPERVOLUME, QualityIndicator.IGD, QualityIndicator.SPACING),
-        runRange = 1..10
+        metrics = EnumSet.of(QualityIndicator.IGD, QualityIndicator.SPACING, QualityIndicator.HYPERVOLUME),
+        runRange = 1..20
     )
         .apply {
-            showStatistics()
-            showWinners()
+//            showStatistics()
+//            showWinners()
+            printLatexComparisonTable()
         }
 }

@@ -54,7 +54,7 @@ class WinnerCounter {
             }
     }
 
-    private fun isMetricValid(metric: String) = !metric.endsWith("_error") && metric != "NFE"
+    private fun isMetricValid(metric: String) = !metric.endsWith("_error") //&& metric != "NFE"
 
     private fun isStatisticallySignificant(
         finalEpochAlgorithmResults: Map<String, AlgorithmStats>,
@@ -63,7 +63,7 @@ class WinnerCounter {
     ): Boolean {
         val indifferentAlgorithms = finalEpochAlgorithmResults[algorithm]?.get(metric)?.indifferentAlgorithms
         return indifferentAlgorithms?.isEmpty()
-            ?: throw IllegalArgumentException("No such metric or algorithm: $algorithm, $metric")
+            ?: false // throw IllegalArgumentException("No such metric or algorithm: $algorithm, $metric")
         // indifferentAlgorithms.size < analyzer.analysis.algorithms.size
     }
 

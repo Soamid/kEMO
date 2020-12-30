@@ -2,6 +2,7 @@ package pl.edu.agh.kemo.algorithm
 
 import kemo.driver.DBEADriverBuilder
 import kemo.driver.IBEADriverBuilder
+import kemo.driver.MOCMAESDriverBuilder
 import kemo.driver.MOEADDriverBuilder
 import kemo.driver.NSGAIIDriverBuilder
 import kemo.driver.NSGAIIIDriverBuilder
@@ -33,7 +34,8 @@ class HGSProvider : AlgorithmProvider() {
         "IBEA" to ::IBEADriverBuilder,
         "MOEAD" to ::MOEADDriverBuilder,
         "DBEA" to ::DBEADriverBuilder,
-        "OMOPSO" to ::OMOPSODriverBuilder
+        "OMOPSO" to ::OMOPSODriverBuilder,
+        "MO-CMA-ES" to ::MOCMAESDriverBuilder
     )
 
     override fun getAlgorithm(name: String, properties: Properties, problem: Problem): Algorithm? {

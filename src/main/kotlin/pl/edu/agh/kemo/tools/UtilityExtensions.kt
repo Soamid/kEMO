@@ -5,6 +5,8 @@ import org.slf4j.LoggerFactory
 import pl.edu.agh.kemo.algorithm.HGSType
 import pl.edu.agh.kemo.simulation.QualityIndicator
 import java.util.EnumSet
+import kotlin.math.pow
+import kotlin.math.roundToInt
 
 inline fun <reified T : Any> loggerFor() = LoggerFactory.getLogger(T::class.java)
 
@@ -23,12 +25,17 @@ fun Double.trimMantissa(trimOffset: Int): Double {
     return this
 }
 
+fun Double.roundTo(numFractionDigits: Int): Double {
+    val factor = 10.0.pow(numFractionDigits.toDouble())
+    return (this * factor).roundToInt() / factor
+}
+
 fun EnumSet<HGSType>.algorithmVariants(baseAlgorithms: List<String>): List<String> =
     baseAlgorithms.flatMap { algorithmVariants(it) }
 
 fun EnumSet<HGSType>.algorithmVariants(baseAlgorithm: String): List<String> {
     val hgsAlgorithms = map { "${it.shortName}+$baseAlgorithm" }
-    return hgsAlgorithms + baseAlgorithm
+    return listOf(baseAlgorithm) + hgsAlgorithms
 }
 
 fun Analyzer.withMetrics(metrics: EnumSet<QualityIndicator>): Analyzer {

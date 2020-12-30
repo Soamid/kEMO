@@ -3,29 +3,27 @@ package pl.edu.agh.kemo.simulation
 import kotlinx.coroutines.asCoroutineDispatcher
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
-import org.moeaframework.Analyzer
 import org.moeaframework.Executor
 import org.moeaframework.Instrumenter
 import org.moeaframework.analysis.collector.Accumulator
-import org.moeaframework.analysis.plot.Plot
 import org.moeaframework.core.Settings
 import org.moeaframework.core.spi.AlgorithmFactory
 import org.moeaframework.core.spi.ProblemFactory
 import pl.edu.agh.kemo.algorithm.HGSProvider
 import pl.edu.agh.kemo.algorithm.HGSType
-import pl.edu.agh.kemo.tools.WinnerCounter
 import pl.edu.agh.kemo.tools.algorithmVariants
 import pl.edu.agh.kemo.tools.average
 import pl.edu.agh.kemo.tools.loggerFor
-import pl.edu.agh.kemo.tools.withMetrics
-import toExistingFilepath
 import java.util.EnumSet
+import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 import kotlin.system.measureTimeMillis
 
 
+val SIMULATION_EXECUTOR: ExecutorService = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors())
+
 val SIMULATION_DISPATCHER =
-    Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors()).asCoroutineDispatcher()
+    SIMULATION_EXECUTOR.asCoroutineDispatcher()
 
 abstract class Simulation(
     protected val repetitions: Int = 10,
@@ -59,7 +57,7 @@ abstract class Simulation(
                 val resultAccumulators = algorithmVariants.associateWith { mutableListOf<Accumulator>() }
 
                 runBlocking {
-                    for (runNo in startRunNo..(startRunNo + repetitions)) {
+                    for (runNo in startRunNo until (startRunNo + repetitions)) {
                         for (algorithmVariant in algorithmVariants) {
                             launch(SIMULATION_DISPATCHER) {
                                 log.info("Processing... $algorithmVariant")
@@ -76,7 +74,7 @@ abstract class Simulation(
                 updateStatistics(resultAccumulators, algorithmsAccumulators, problemName)
             }
 
-            algorithmTimes.forEach { algorithm, elapsedTime ->
+            algorithmTimes.forEach { (algorithm, elapsedTime) ->
                 log.info("$algorithm elapsed time = $elapsedTime")
             }
         }

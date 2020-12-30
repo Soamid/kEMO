@@ -8,6 +8,8 @@ import org.moeaframework.core.PopulationIO
 import toExistingFilepath
 import java.io.File
 
+const val RESULTS_PATH = "results_budget"
+
 fun saveMetrics(
     resultAccumulators: Map<String, MutableList<Accumulator>>,
     problemName: String,
@@ -25,14 +27,14 @@ private fun metricsPath(
     algorithm: String,
     problemName: String,
     runNo: Int
-) = "results/$algorithm/${problemName}_metrics_${runNo}.csv"
+) = "$RESULTS_PATH/$algorithm/${problemName}_metrics_${runNo}.csv"
 
 fun Population.save(algorithmName: String, problemName: String, runNo: Int) {
     PopulationIO.write(populationPath(algorithmName, problemName, runNo).toExistingFilepath(), this)
 }
 
 private fun populationPath(algorithmName: String, problemName: String, runNo: Int) =
-    "results/$algorithmName/${problemName}_population_${runNo}.csv"
+    "$RESULTS_PATH/$algorithmName/${problemName}_population_${runNo}.csv"
 
 fun loadPopulations(
     problemName: String,

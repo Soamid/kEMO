@@ -19,16 +19,16 @@ fun main() {
             "UF4",
             "UF5",
             "UF6",
-            "UF7",
-            "UF8",
-            "UF9"
+//            "UF7",
+//            "UF8",
+//            "UF9"
 //            "UF11",
 //            "UF12",
 //            "UF13"
         ),
-        hgsTypes = EnumSet.of(HGSType.PARALLEL, HGSType.HOPSO),
+        hgsTypes = EnumSet.of(HGSType.PARALLEL, HGSType.HOPSO, HGSType.CLASSIC),
         metrics = EnumSet.of(QualityIndicator.HYPERVOLUME, QualityIndicator.IGD, QualityIndicator.SPACING),
-        runRange = 1..10
+        runRange = 0..0
     )
         .apply {
             saveAlgorithmPlots()

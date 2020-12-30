@@ -2,12 +2,13 @@ package pl.edu.agh.kemo.tools
 
 import org.apache.commons.math3.linear.MatrixUtils
 import org.apache.commons.math3.linear.RealMatrix
+import org.moeaframework.IndicatorResult
 import org.moeaframework.analysis.collector.Accumulator
 import org.moeaframework.core.Population
 import org.moeaframework.core.Solution
 import org.moeaframework.core.variable.RealVariable
 import pl.edu.agh.kemo.algorithm.Node
-import kotlin.coroutines.EmptyCoroutineContext.fold
+import pl.edu.agh.kemo.simulation.QualityIndicator
 import kotlin.math.pow
 import kotlin.math.sqrt
 

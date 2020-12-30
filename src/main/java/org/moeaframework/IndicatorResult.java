@@ -1,6 +1,8 @@
 package org.moeaframework;
 
 import org.apache.commons.math3.stat.descriptive.UnivariateStatistic;
+import org.apache.commons.math3.stat.descriptive.moment.Mean;
+import org.apache.commons.math3.stat.descriptive.moment.StandardDeviation;
 import org.apache.commons.math3.stat.descriptive.rank.Max;
 import org.apache.commons.math3.stat.descriptive.rank.Median;
 import org.apache.commons.math3.stat.descriptive.rank.Min;
@@ -86,6 +88,14 @@ public class IndicatorResult {
      */
     public double getMax() {
         return getStatistic(new Max());
+    }
+
+    public double getAverage() {
+        return getStatistic(new Mean());
+    }
+
+    public double getStdev() {
+        return getStatistic(new StandardDeviation());
     }
 
     /**
@@ -193,6 +203,11 @@ public class IndicatorResult {
                 ps.println(getMedian());
                 ps.print("        Max: ");
                 ps.println(getMax());
+                ps.print("        Average: ");
+                ps.println(getAverage());
+                ps.print("        Stdev: ");
+                ps.println(getStdev());
+
             } else {
                 for (UnivariateStatistic statistic : statistics) {
                     ps.print("        ");
@@ -213,5 +228,4 @@ public class IndicatorResult {
 
         ps.println();
     }
-
 }
