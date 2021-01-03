@@ -46,6 +46,22 @@ def identify_benchmark(metrics_path: pathlib.Path) -> BenchmarkDescriptor:
 def read_benchmark_attempt(metrics_path, optimizer_descriptor):
     benchmark_descriptor = identify_benchmark(metrics_path)
     metrics = pd.read_csv(metrics_path, engine='python', sep=', ')
+
+    preprocessed_rows = []
+    budget_levels = [x for x in np.arange(2000, 300001, 1000)]
+    rows = [dict(x[1]) for x in metrics.iterrows()]
+    level_pointer = 0
+    row_pointer = 0
+    while level_pointer < len(budget_levels):
+        while row_pointer < len(rows) and rows[row_pointer]['NFE'] < budget_levels[level_pointer]:
+            row_pointer += 1
+        preprocessed_row = dict(rows[row_pointer - 1])
+        preprocessed_row['NFE-Level'] = budget_levels[level_pointer]
+        preprocessed_rows.append(preprocessed_row)
+        level_pointer += 1
+    preprocessed_metrics = pd.DataFrame(preprocessed_rows)
+    metrics = preprocessed_metrics
+
     metrics['Benchmark'] = benchmark_descriptor.benchmark
     metrics['Optimizer'] = optimizer_descriptor.optimizer
     metrics['Meta-Optimizer'] = optimizer_descriptor.meta_optimizer
@@ -92,9 +108,8 @@ def sanitize_results(results: pd.DataFrame) -> pd.DataFrame:
         ['Benchmark', 'Optimizer', 'Meta-Optimizer', 'Measurement']
     ).agg(
         {column: ['mean', 'std'] for column in results.columns}
-    ).dropna(
-        subset=[('NFE', 'std')]
     )
+
     for column in results.columns:
         processed[column, 'upper_limit'] = processed[column, 'mean'] + processed[column, 'std']
         processed[column, 'lower_limit'] = processed[column, 'mean'] - processed[column, 'std']
@@ -110,7 +125,7 @@ def power10(x: float) -> float:
 
 def main() -> None:
     results = read_results()
-    columns = [column for column in results.columns if column != 'NFE']
+    columns = [column for column in results.columns if (column != 'NFE' and column != 'NFE-Level')]
     sanitized_results = sanitize_results(results)
     for benchmark in sanitized_results.index.get_level_values('Benchmark').unique():
         for optimizer in sanitized_results.index.get_level_values('Optimizer').unique():
@@ -123,15 +138,30 @@ def main() -> None:
                     for meta_optimizer, colour in COLOURS_FOR_OPTIMIZERS.items():
                         series = sanitized_results.loc[benchmark, optimizer, meta_optimizer]
                         ax.fill_between(
-                            series['NFE', 'mean'], series[column, 'lower_limit'], series[column, 'upper_limit'],
+                            series['NFE-Level', 'mean'], series[column, 'lower_limit'], series[column, 'upper_limit'],
                             alpha=STANDARD_ALPHA,
                             color=colour
                         )
                         ax.plot(
-                            series['NFE', 'mean'], series[column, 'mean'],
+                            series['NFE-Level', 'mean'], series[column, 'mean'],
                             '-',
                             color=colour,
-                            label=f"{meta_optimizer}+{optimizer}" if meta_optimizer != '' else optimizer
+                            label=f"{meta_optimizer}+{optimizer}" if meta_optimizer != '' else optimizer,
+                            linewidth=STANDARD_LINE_WIDTH,
+                        )
+                        ax.plot(
+                            series['NFE-Level', 'mean'], series[column, 'lower_limit'],
+                            ':',
+                            color=colour,
+                            alpha=1.0 - STANDARD_ALPHA,
+                            linewidth=STANDARD_LINE_WIDTH*0.5,
+                        )
+                        ax.plot(
+                            series['NFE-Level', 'mean'], series[column, 'upper_limit'],
+                            ':',
+                            color=colour,
+                            alpha=1.0 - STANDARD_ALPHA,
+                            linewidth=STANDARD_LINE_WIDTH*0.5,
                         )
                     ax.set_xlabel("NFE")
                     if column == 'Hypervolume':
