@@ -84,3 +84,6 @@ hs_err_pid*
 
 plots
 results
+scripts/results_budget/
+scripts/venv/
+scripts/.idea/
