@@ -1,14 +1,14 @@
 package pl.edu.agh.kemo.tools
 
+import org.apache.commons.lang3.StringEscapeUtils
 import org.apache.commons.math3.linear.MatrixUtils
 import org.apache.commons.math3.linear.RealMatrix
-import org.moeaframework.IndicatorResult
 import org.moeaframework.analysis.collector.Accumulator
 import org.moeaframework.core.Population
+import org.moeaframework.core.Settings
 import org.moeaframework.core.Solution
 import org.moeaframework.core.variable.RealVariable
 import pl.edu.agh.kemo.algorithm.Node
-import pl.edu.agh.kemo.simulation.QualityIndicator
 import kotlin.math.pow
 import kotlin.math.sqrt
 
@@ -92,7 +92,7 @@ fun List<Accumulator>.average(): Accumulator {
     return meanAccumulator
 }
 
-data class Result(val average: Double, val error : Double)
+data class Result(val average: Double, val error: Double)
 
 fun Sequence<Double>.standardDev(): Double {
     val mean = average()
@@ -107,3 +107,42 @@ fun Accumulator.minSize(): Int =
         .map { size(it) }
         .min()
         ?: 0
+
+/**
+ * Implementation copied from Accumulator#toCSV() method with separator " ," replaced with ","
+ */
+fun Accumulator.toTrimmedCSV(): String {
+    val sb = StringBuilder()
+    var firstValue = true
+
+    // determine the ordering of the fields
+    val fields: MutableSet<String> = LinkedHashSet()
+    fields.add("NFE")
+    if ("Elapsed Time" in keySet()) {
+        fields.add("Elapsed Time")
+    }
+    fields.addAll(keySet())
+
+    // create the header
+    for (field in fields) {
+        if (!firstValue) {
+            sb.append(",")
+        }
+        sb.append(StringEscapeUtils.escapeCsv(field))
+        firstValue = false
+    }
+
+    // create the data
+    for (i in 0 until size("NFE")) {
+        sb.append(Settings.NEW_LINE)
+        firstValue = true
+        for (field in fields) {
+            if (!firstValue) {
+                sb.append(",")
+            }
+            sb.append(StringEscapeUtils.escapeCsv(get(field, i).toString()))
+            firstValue = false
+        }
+    }
+    return sb.toString()
+}

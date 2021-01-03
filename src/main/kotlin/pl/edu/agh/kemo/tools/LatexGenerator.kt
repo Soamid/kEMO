@@ -74,6 +74,7 @@ fun printMetricsComparisonTable(
         )
     }.joinToString(separator = " & ", prefix = "Wins & ", postfix = """\\""")
 
+    println("""\resizebox{\textwidth}{!}{""")
     println(tableBegin)
     println("""\hline""")
     println(metricHeader)
@@ -87,6 +88,7 @@ fun printMetricsComparisonTable(
     println(summaryWins)
     println("""\hline""")
     println("""\end{tabular}""")
+    println("}")
 
     println()
 }

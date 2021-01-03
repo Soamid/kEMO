@@ -5,10 +5,10 @@ import org.moeaframework.analysis.collector.Accumulator
 import org.moeaframework.core.NondominatedPopulation
 import org.moeaframework.core.Population
 import org.moeaframework.core.PopulationIO
-import toExistingFilepath
+import pl.edu.agh.kemo.tools.toTrimmedCSV
 import java.io.File
 
-const val RESULTS_PATH = "results_budget"
+const val RESULTS_PATH = "results_temp2"
 
 fun saveMetrics(
     resultAccumulators: Map<String, MutableList<Accumulator>>,
@@ -18,10 +18,18 @@ fun saveMetrics(
     resultAccumulators.entries
         .forEach { (algorithm, accumulators) ->
             accumulators.onEachIndexed { index, accumulator ->
-                accumulator.saveCSV(metricsPath(algorithm, problemName, startRunNo + index).toExistingFilepath())
+                metricsPath(algorithm, problemName, startRunNo + index).toExistingFile()
+                    .writeText(accumulator.toTrimmedCSV())
             }
         }
 }
+
+fun Accumulator.saveCSV(algorithm: String, problemName: String, runNo: Int) {
+    metricsPath(algorithm, problemName, runNo).toExistingFile()
+        .writeText(toTrimmedCSV())
+}
+
+fun String.toExistingFile(): File = File(this).apply { parentFile.mkdirs() }
 
 private fun metricsPath(
     algorithm: String,
@@ -30,7 +38,7 @@ private fun metricsPath(
 ) = "$RESULTS_PATH/$algorithm/${problemName}_metrics_${runNo}.csv"
 
 fun Population.save(algorithmName: String, problemName: String, runNo: Int) {
-    PopulationIO.write(populationPath(algorithmName, problemName, runNo).toExistingFilepath(), this)
+    PopulationIO.write(populationPath(algorithmName, problemName, runNo).toExistingFile(), this)
 }
 
 private fun populationPath(algorithmName: String, problemName: String, runNo: Int) =
@@ -50,13 +58,15 @@ fun accumulatorsFromCSV(
     problemName: String,
     algorithmName: String,
     runRange: IntRange
-) : List<Accumulator> {
+): List<Accumulator> {
     return runRange.map { runNo -> metricsPath(algorithmName, problemName, runNo) }
         .map { csvReader().readAllWithHeader(File(it)) }
-        .map { rows -> Accumulator().apply {
-            rows.flatMap { it.entries }
-                .forEach { (metric, value) -> add(metric.trim(), value.toDouble()) }
-        }}
+        .map { rows ->
+            Accumulator().apply {
+                rows.flatMap { it.entries }
+                    .forEach { (metric, value) -> add(metric.trim(), value.toDouble()) }
+            }
+        }
 }
 
 

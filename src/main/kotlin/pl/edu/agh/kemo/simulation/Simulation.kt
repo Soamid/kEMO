@@ -12,9 +12,9 @@ import org.moeaframework.core.spi.ProblemFactory
 import pl.edu.agh.kemo.algorithm.HGSProvider
 import pl.edu.agh.kemo.algorithm.HGSType
 import pl.edu.agh.kemo.tools.algorithmVariants
-import pl.edu.agh.kemo.tools.average
 import pl.edu.agh.kemo.tools.loggerFor
 import java.util.EnumSet
+import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 import kotlin.system.measureTimeMillis
@@ -38,8 +38,9 @@ abstract class Simulation(
     fun run() {
         AlgorithmFactory.getInstance().addProvider(HGSProvider())
 
-        val algorithmTimes = mutableMapOf<String, Long>()
+        val algorithmTimes = ConcurrentHashMap<String, Long>()
 
+        runBlocking {
         for (problemName in problems) {
             val problemKey = "core.indicator.hypervolume_refpt.$problemName"
 
@@ -48,30 +49,27 @@ abstract class Simulation(
 
             Settings.PROPERTIES.setDoubleArray(problemKey, referencePoint)
 
-            val algorithmsAccumulators = mutableMapOf<String, Accumulator>()
-
             for (algorithmName in algorithms) {
                 log.info("Processing... $algorithmName, $problemName")
 
                 val algorithmVariants = hgsTypes.algorithmVariants(algorithmName)
-                val resultAccumulators = algorithmVariants.associateWith { mutableListOf<Accumulator>() }
 
-                runBlocking {
+
                     for (runNo in startRunNo until (startRunNo + repetitions)) {
                         for (algorithmVariant in algorithmVariants) {
                             launch(SIMULATION_DISPATCHER) {
                                 log.info("Processing... $algorithmVariant")
-                                runAlgorithmVariant(
+                                val accumulator = runAlgorithmVariant(
                                     problemName,
                                     algorithmVariant,
                                     runNo,
-                                    algorithmTimes,
-                                    resultAccumulators)
+                                    algorithmTimes
+                                )
+                                accumulator.saveCSV(algorithmVariant, problemName, runNo)
                             }
                         }
                     }
                 }
-                updateStatistics(resultAccumulators, algorithmsAccumulators, problemName)
             }
 
             algorithmTimes.forEach { (algorithm, elapsedTime) ->
@@ -84,9 +82,8 @@ abstract class Simulation(
         problemName: String,
         algorithmVariant: String,
         runNo: Int,
-        algorithmTimes: MutableMap<String, Long>,
-        resultAccumulators: Map<String, MutableList<Accumulator>>
-    ) {
+        algorithmTimes: MutableMap<String, Long>
+    ): Accumulator {
         val instrumenter = Instrumenter()
             .withProblem(problemName)
             .also { configureInstrumenter(it) }
@@ -105,24 +102,7 @@ abstract class Simulation(
         }
 
         algorithmTimes[algorithmVariant] = (algorithmTimes[algorithmVariant] ?: 0) + runTime
-        resultAccumulators[algorithmVariant]?.add(instrumenter.lastAccumulator)
-    }
-
-    private fun updateStatistics(
-        resultAccumulators: Map<String, MutableList<Accumulator>>,
-        algorithmsAccumulators: MutableMap<String, Accumulator>,
-        problemName: String,
-    ) {
-        saveMetrics(resultAccumulators, problemName, startRunNo)
-
-        val averageAccumulators = resultAccumulators.mapValues { it.value.average() }
-        algorithmsAccumulators.putAll(averageAccumulators)
-
-        averageAccumulators.forEach { (variant, accumulator) ->
-            log.debug("$problemName : $variant:")
-            log.debug("Average accumulator for variant: $variant")
-            log.debug(accumulator.toCSV())
-        }
+        return instrumenter.lastAccumulator
     }
 
     abstract fun configureInstrumenter(instrumenter: Instrumenter): Instrumenter

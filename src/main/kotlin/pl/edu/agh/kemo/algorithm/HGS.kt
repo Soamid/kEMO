@@ -3,10 +3,14 @@ package pl.edu.agh.kemo.algorithm
 import org.apache.commons.math3.linear.MatrixUtils
 import org.apache.commons.math3.util.Precision
 import org.moeaframework.algorithm.AbstractAlgorithm
+import org.moeaframework.analysis.sensitivity.EpsilonHelper
+import org.moeaframework.core.EpsilonBoxDominanceArchive
 import org.moeaframework.core.NondominatedPopulation
 import org.moeaframework.core.Population
 import org.moeaframework.core.Problem
 import org.moeaframework.core.Solution
+import org.moeaframework.core.fitness.CrowdingDistanceFitnessEvaluator
+import org.moeaframework.core.fitness.FitnessBasedArchive
 import org.moeaframework.core.spi.ProblemFactory
 import org.moeaframework.core.variable.RealVariable
 import pl.edu.agh.kemo.tools.countAlive
@@ -62,7 +66,7 @@ open class HGS(
     val population: Population,
     protected val parameters: HGSConfiguration,
     private val nodeFactory: NodeFactory = DefaultNodeFactory(),
-    protected val budget : Int? = null
+    protected val budget: Int? = null
 ) :
     AbstractAlgorithm(problem) {
 
@@ -139,10 +143,26 @@ open class HGS(
 
     override fun getResult(): NondominatedPopulation {
 //        printStatus()
-        return finalizedPopulations.values
+        val pop = finalizedPopulations.values
             .reduce { acc, subPopulation -> acc + subPopulation }
-            .let { NondominatedPopulation(it) }
+//               .let { createEpsilonBoxDominanceArchive(it) }
+            .let { createFitnessBasedArchive(it) }
+//        log.info("Pop size: ${pop.size()}")
+        return pop
     }
+
+    private fun createEpsilonBoxDominanceArchive(it: List<Solution>) =
+        EpsilonBoxDominanceArchive(EpsilonHelper.getEpsilon(problem), it)
+
+    private fun createFitnessBasedArchive(it: List<Solution>) =
+        FitnessBasedArchive(
+            CrowdingDistanceFitnessEvaluator(), when (problem.numberOfObjectives) {
+                2 -> 100
+                3 -> 150
+                5 -> 800
+                else -> 100
+            }, it
+        )
 
     override fun iterate() {
 //        printStatus()
@@ -156,7 +176,7 @@ open class HGS(
     }
 
     private fun printStatus() {
-        log.info("SUMMARY #$metaepochNumber")
+        log.info("SUMMARY #$metaepochNumber ($numberOfEvaluations evaluations)")
         log.info("all nodes: ${nodes.size}, alive: ${nodes.count { it.alive }}, ripe:  ${nodes.count { it.ripe }}")
         levelNodes.forEach {
             log.info(
@@ -174,7 +194,7 @@ open class HGS(
             levelNodes[level]?.forEach {
                 val epochCost = it.runMetaepoch()
                 numberOfEvaluations += calculateCost(level, epochCost)
-                if(isBudgetMet()) {
+                if (isBudgetMet()) {
                     return false
                 }
                 finalizedPopulations[it] = it.finalizedPopulation.toList()

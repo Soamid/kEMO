@@ -1,5 +1,6 @@
 package pl.edu.agh.kemo.algorithm
 
+import org.moeaframework.analysis.sensitivity.EpsilonHelper
 import org.moeaframework.core.EpsilonBoxDominanceArchive
 import org.moeaframework.core.NondominatedPopulation
 import org.moeaframework.core.Population
@@ -25,7 +26,8 @@ class HopsoNode(
     parameters: HGSConfiguration
 ) : Node(problem, driverBuilder, level, population, problemReferenceSet, parameters) {
 
-    private val archive: EpsilonBoxDominanceArchive = EpsilonBoxDominanceArchive(0.0075) // TODO extract eps to config
+    private val archive: EpsilonBoxDominanceArchive =
+        EpsilonBoxDominanceArchive(EpsilonHelper.getEpsilon(problem))
 
     override val finalizedPopulation: Population
         get() = archive

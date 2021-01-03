@@ -36,5 +36,15 @@ class MOEADDriver(algorithm: MOEAD, mantissaBits: Int) : Driver<MOEAD>(algorithm
     override fun nominateDelegates(): List<Solution> =
         getPopulation().toList()
 
-    override fun getPopulation(): Population = algorithm.result
+    override fun getPopulation(): Population = algorithm.population
 }
+
+private inline val MOEAD.population: Population
+    get() = javaClass.getDeclaredField("population").let {
+        it.isAccessible = true
+        val values = it.get(this) as List<Any>
+        val indClazz = Class.forName("org.moeaframework.algorithm.MOEAD\$Individual")
+        val method = indClazz.getMethod("getSolution")
+        method.isAccessible = true
+        return@let Population(values.map { ind -> method.invoke(ind) as Solution })
+    }

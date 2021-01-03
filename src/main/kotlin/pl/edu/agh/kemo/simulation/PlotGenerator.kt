@@ -5,7 +5,6 @@ import org.moeaframework.analysis.plot.Plot
 import pl.edu.agh.kemo.algorithm.HGSType
 import pl.edu.agh.kemo.tools.algorithmVariants
 import pl.edu.agh.kemo.tools.average
-import toExistingFilepath
 import java.util.EnumSet
 
 class PlotGenerator(
@@ -40,7 +39,7 @@ class PlotGenerator(
                     }
                     setTitle(algorithmName)
                 }
-                plot.save("plots/$algorithmName/${problemName}_${metric.shortName}.png".toExistingFilepath())
+                plot.save("plots/$algorithmName/${problemName}_${metric.shortName}.png".toExistingFile())
             }
     }
 
@@ -66,7 +65,7 @@ class PlotGenerator(
                 }
                 setTitle("$problemName (${metric.fullName})")
             }
-            summaryPlot.save("plots/summary/${problemName}_${metric.shortName}.png".toExistingFilepath())
+            summaryPlot.save("plots/summary/${problemName}_${metric.shortName}.png".toExistingFile())
         }
     }
 }
