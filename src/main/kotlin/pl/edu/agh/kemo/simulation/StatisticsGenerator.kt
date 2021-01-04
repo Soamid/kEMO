@@ -9,10 +9,10 @@ import pl.edu.agh.kemo.algorithm.HGSType
 import pl.edu.agh.kemo.tools.WinnerCounter
 import pl.edu.agh.kemo.tools.algorithmVariants
 import pl.edu.agh.kemo.tools.average
-import pl.edu.agh.kemo.tools.bestMetricValue
 import pl.edu.agh.kemo.tools.printMetricsComparisonTable
-import java.lang.IllegalStateException
 import java.util.EnumSet
+
+const val SIGNIFICANCE_LEVEL = 0.05
 
 class StatisticsGenerator(
     private val problems: List<String>,
@@ -86,62 +86,69 @@ class StatisticsGenerator(
     }
 
     private fun calculateStatisticalSignificance(analyzerResults: Map<String, AlgorithmStats>) {
-        val significanceLevel = 0.05
         for (metric in metrics) {
-            val indicatorName = metric.fullName
+            calculateStatisticalSignificance(metric, analyzerResults)
+        }
+    }
+}
 
-            val kwTest = KruskalWallisTest(algorithmVariants.size)
+fun calculateStatisticalSignificance(
+    metric: QualityIndicator,
+    analyzerResults: Map<String, AlgorithmStats>
+) {
+    val indicatorName = metric.fullName
 
-            for (index in algorithmVariants.indices) {
-                val algorithm = algorithmVariants[index]
-                analyzerResults[algorithm]
+    val algorithmVariants = analyzerResults.keys.toList()
+    val kwTest = KruskalWallisTest(algorithmVariants.size)
+
+    for (index in algorithmVariants.indices) {
+        val algorithm = algorithmVariants[index]
+        analyzerResults[algorithm]
+            ?.get(indicatorName)
+            ?.values
+            ?.let { kwTest.addAll(it, index) }
+    }
+
+    if (!kwTest.test(SIGNIFICANCE_LEVEL)) {
+        for (i in 0 until algorithmVariants.size - 1) {
+            for (j in algorithmVariants.indices) {
+                analyzerResults[algorithmVariants[i]]
                     ?.get(indicatorName)
-                    ?.values
-                    ?.let { kwTest.addAll(it, index) }
+                    ?.addIndifferentAlgorithm(
+                        algorithmVariants[j]
+                    )
+                analyzerResults[algorithmVariants[j]]
+                    ?.get(indicatorName)
+                    ?.addIndifferentAlgorithm(
+                        algorithmVariants[i]
+                    )
             }
+        }
+    } else {
+        for (i in 0 until algorithmVariants.size - 1) {
+            for (j in i + 1 until algorithmVariants.size) {
+                val mwTest = MannWhitneyUTest()
 
-            if (!kwTest.test(significanceLevel)) {
-                for (i in 0 until algorithmVariants.size - 1) {
-                    for (j in algorithmVariants.indices) {
-                        analyzerResults[algorithmVariants[i]]
-                            ?.get(indicatorName)
-                            ?.addIndifferentAlgorithm(
-                                algorithmVariants[j]
-                            )
-                        analyzerResults[algorithmVariants[j]]
-                            ?.get(indicatorName)
-                            ?.addIndifferentAlgorithm(
-                                algorithmVariants[i]
-                            )
-                    }
-                }
-            } else {
-                for (i in 0 until algorithmVariants.size - 1) {
-                    for (j in i + 1 until algorithmVariants.size) {
-                        val mwTest = MannWhitneyUTest()
+                mwTest.addAll(
+                    analyzerResults[algorithmVariants[i]]
+                        ?.get(indicatorName)?.values, 0
+                )
+                mwTest.addAll(
+                    analyzerResults[algorithmVariants[j]]
+                        ?.get(indicatorName)?.values, 1
+                )
 
-                        mwTest.addAll(
-                            analyzerResults[algorithmVariants[i]]
-                                ?.get(indicatorName)?.values, 0
+                if (!mwTest.test(SIGNIFICANCE_LEVEL)) {
+                    analyzerResults[algorithmVariants[i]]
+                        ?.get(indicatorName)
+                        ?.addIndifferentAlgorithm(
+                            algorithmVariants[j]
                         )
-                        mwTest.addAll(
-                            analyzerResults[algorithmVariants[j]]
-                                ?.get(indicatorName)?.values, 1
+                    analyzerResults[algorithmVariants[j]]
+                        ?.get(indicatorName)
+                        ?.addIndifferentAlgorithm(
+                            algorithmVariants[i]
                         )
-
-                        if (!mwTest.test(significanceLevel)) {
-                            analyzerResults[algorithmVariants[i]]
-                                ?.get(indicatorName)
-                                ?.addIndifferentAlgorithm(
-                                    algorithmVariants[j]
-                                )
-                            analyzerResults[algorithmVariants[j]]
-                                ?.get(indicatorName)
-                                ?.addIndifferentAlgorithm(
-                                    algorithmVariants[i]
-                                )
-                        }
-                    }
                 }
             }
         }

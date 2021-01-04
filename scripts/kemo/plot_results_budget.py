@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
-RESULTS_DIR_PATH: pathlib.Path = pathlib.Path('../results_budget')
+RESULTS_DIR_PATH: pathlib.Path = pathlib.Path('../results_fba')
 PLOTS_DIR_PATH: pathlib.Path = pathlib.Path('../plots')
 
 BENCHMARK_PATTERN = re.compile(r'(?P<benchmark>[\w|\-]+\d)_metrics_(?P<attempt>\d+)\.csv')
@@ -45,7 +45,7 @@ def identify_benchmark(metrics_path: pathlib.Path) -> BenchmarkDescriptor:
 
 def read_benchmark_attempt(metrics_path, optimizer_descriptor):
     benchmark_descriptor = identify_benchmark(metrics_path)
-    metrics = pd.read_csv(metrics_path, engine='python', sep=', ')
+    metrics = pd.read_csv(metrics_path)
 
     preprocessed_rows = []
     budget_levels = [x for x in np.arange(2000, 300001, 1000)]
