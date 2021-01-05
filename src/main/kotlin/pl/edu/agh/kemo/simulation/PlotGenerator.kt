@@ -2,6 +2,7 @@ package pl.edu.agh.kemo.simulation
 
 import org.moeaframework.analysis.collector.Accumulator
 import org.moeaframework.analysis.plot.Plot
+import org.moeaframework.problem.StandardProblems
 import pl.edu.agh.kemo.algorithm.HGSType
 import pl.edu.agh.kemo.tools.algorithmVariants
 import pl.edu.agh.kemo.tools.average
@@ -14,6 +15,8 @@ class PlotGenerator(
     private val metrics: EnumSet<QualityIndicator>,
     private val runRange: IntRange
 ) {
+
+    val allAlgorithmVariants = algorithms.flatMap {  hgsTypes.algorithmVariants(it) }
 
     fun saveAlgorithmPlots() {
         for (problem in problems) {
@@ -66,6 +69,22 @@ class PlotGenerator(
                 setTitle("$problemName (${metric.fullName})")
             }
             summaryPlot.save("plots/summary/${problemName}_${metric.shortName}.png".toExistingFile())
+        }
+    }
+
+    fun savePopulationPlots() {
+        for(problemName in problems) {
+            val paretoFront = StandardProblems().getReferenceSet(problemName)
+
+            val populations = loadPopulations(problemName, allAlgorithmVariants, runRange)
+
+            val populationPlot = Plot().apply {
+                populations.entries.forEach { (algorithm, populations) ->
+                    add(algorithm, populations[0])
+                }
+                add("referenceSet", paretoFront)
+            }
+            populationPlot.save("plots/fronts/${problemName}.png".toExistingFile())
         }
     }
 }

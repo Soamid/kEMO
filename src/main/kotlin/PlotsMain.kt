@@ -23,15 +23,16 @@ fun main() {
             "UF8",
             "UF9",
             "UF11",
-            "UF12",
-            "UF13"
+//            "UF12",
+//            "UF13"
         ),
         hgsTypes = EnumSet.of(HGSType.PARALLEL, HGSType.HOPSO),
         metrics = EnumSet.of(QualityIndicator.IGD, QualityIndicator.SPACING, QualityIndicator.HYPERVOLUME),
         runRange = 0..0
     )
         .apply {
-            saveAlgorithmPlots()
-            saveSummaryPlots()
+//            saveAlgorithmPlots()
+//            saveSummaryPlots()
+            savePopulationPlots()
         }
 }

@@ -21,8 +21,10 @@ val MAX_EVALUATIONS_PROPERTY = "maxEvaluations"
 
 enum class HGSType(val shortName: String) {
 
-    CLASSIC("HGS"), PARALLEL("PHGS"), HOPSO("HOPSO")
+    CLASSIC("HGS"), PARALLEL("PHGS"), HOPSO("HOPSO");
 }
+
+fun String.isHgs() = HGSType.values().any { startsWith(it.name) }
 
 class HGSProvider : AlgorithmProvider() {
 

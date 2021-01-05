@@ -2,6 +2,7 @@ package pl.edu.agh.kemo.tools
 
 import org.moeaframework.AlgorithmStats
 import org.moeaframework.IndicatorResult
+import pl.edu.agh.kemo.algorithm.isHgs
 import pl.edu.agh.kemo.simulation.QualityIndicator
 import pl.edu.agh.kemo.simulation.accumulatorsFromCSV
 import pl.edu.agh.kemo.simulation.calculateStatisticalSignificance
@@ -14,7 +15,8 @@ fun printMetricsComparisonTable(
     metric: QualityIndicator
 ) {
     val winnersCounter = WinnersCounter()
-    val strongWinnersCounter = WinnersCounter(includeIndifferent = false)
+    val softWinnersCounter = WinnersCounter(winnerType = WinnersCounter.WinnerType.SOFT)
+    val strongWinnersCounter = WinnersCounter(winnerType = WinnersCounter.WinnerType.STRONG)
 
     val columnsCount = algorithmVariants.size * 4
     val tableBegin = """\begin{tabular}{|l|*{$columnsCount}{r|}}"""
@@ -44,6 +46,7 @@ fun printMetricsComparisonTable(
         calculateStatisticalSignificance(metric, indicatorResults)
 
         winnersCounter.update(indicatorResults, metric)
+        softWinnersCounter.update(indicatorResults, metric)
         strongWinnersCounter.update(indicatorResults, metric)
 
         algorithmVariants
@@ -61,7 +64,8 @@ fun printMetricsComparisonTable(
             }
     }
 
-    val summaryWins = getSummaryWinsRow(algorithmVariants, winnersCounter, label = "Wins")
+    val summaryWins = getSummaryWinsRow(algorithmVariants, winnersCounter, label = "All Wins")
+    val summarySoftWins = getSummaryWinsRow(algorithmVariants, strongWinnersCounter, label = "Soft wins")
     val summaryStrongWins = getSummaryWinsRow(algorithmVariants, strongWinnersCounter, label = "Strong wins")
 
     println("""\resizebox{\textwidth}{!}{""")
@@ -76,6 +80,8 @@ fun printMetricsComparisonTable(
     rows.forEach { println(it) }
     println("""\hline""")
     println(summaryWins)
+    println("""\hline""")
+    println(summarySoftWins)
     println("""\hline""")
     println(summaryStrongWins)
     println("""\hline""")
@@ -98,7 +104,8 @@ private fun getSummaryWinsRow(
     )
 }.joinToString(separator = " & ", prefix = "$label & ", postfix = """\\""")
 
-class WinnersCounter(val includeIndifferent: Boolean = true) {
+class WinnersCounter(val winnerType: WinnerType = WinnerType.WEAK) {
+
     private val counter = mutableMapOf<String, Int>()
 
     var bestAverage: String? = null
@@ -107,9 +114,9 @@ class WinnersCounter(val includeIndifferent: Boolean = true) {
     var bestError: String? = null
 
     fun update(indicatorResults: Map<String, AlgorithmStats>, metric: QualityIndicator) {
-        bestMin = indicatorResults.bestAlgorithm(metric, Stat.MIN) { it.min }
-        bestAverage = indicatorResults.bestAlgorithm(metric, Stat.AVERAGE) { it.average }
-        bestMax = indicatorResults.bestAlgorithm(metric, Stat.MAX) { it.max }
+        bestMin = indicatorResults.bestAlgorithm(metric) { it.min }
+        bestAverage = indicatorResults.bestAlgorithm(metric) { it.average }
+        bestMax = indicatorResults.bestAlgorithm(metric) { it.max }
         bestError = indicatorResults.bestAlgorithmError(metric)
 
         updateBest(bestMin, Stat.MIN)
@@ -130,7 +137,6 @@ class WinnersCounter(val includeIndifferent: Boolean = true) {
 
     private fun Map<String, AlgorithmStats>.bestAlgorithm(
         metric: QualityIndicator,
-        stat: Stat,
         statExtractor: (IndicatorResult) -> Double
     ): String? {
         val (bestAlgorithm, _) = map { (algorithm, results) ->
@@ -139,10 +145,42 @@ class WinnersCounter(val includeIndifferent: Boolean = true) {
                 statExtractor(results.get(metric.fullName))
             )
         }.reduce { leftResult, rightResult -> bestMetricValue(metric, leftResult, rightResult) }
-        return if (includeIndifferent || stat == Stat.ERROR || get(bestAlgorithm)?.get(metric.fullName)
-                ?.indifferentAlgorithms?.isEmpty() == true
-        ) bestAlgorithm else null
+        return processBestAlgorithm(bestAlgorithm, metric, this)
     }
+
+    private fun processBestAlgorithm(
+        bestAlgorithm: String,
+        metric: QualityIndicator,
+        algorithmsStats: Map<String, AlgorithmStats>
+    ): String? {
+        val indifferentAlgorithms = algorithmsStats[bestAlgorithm]
+            ?.get(metric.fullName)
+            ?.indifferentAlgorithms
+            ?: throw IllegalStateException()
+
+        return when (winnerType) {
+            WinnerType.WEAK -> bestAlgorithm
+            WinnerType.SOFT -> if (indifferentAlgorithms.isEmpty() || isIndifferentToAnotherHGS(
+                    bestAlgorithm,
+                    indifferentAlgorithms
+                ) || isBareDifferentFromAtLeastOneAlgorithm(bestAlgorithm, indifferentAlgorithms, algorithmsStats.keys)
+            ) bestAlgorithm else null
+            WinnerType.STRONG -> {
+                if (indifferentAlgorithms.isEmpty()) bestAlgorithm else null
+            }
+        }
+    }
+
+    private fun isIndifferentToAnotherHGS(
+        bestAlgorithm: String,
+        indifferentAlgorithms: List<String>
+    ) = bestAlgorithm.isHgs() && indifferentAlgorithms.all { it.isHgs() }
+
+    private fun isBareDifferentFromAtLeastOneAlgorithm(
+        bestAlgorithm: String,
+        indifferentAlgorithms: List<String>,
+        allAlgorithms: Set<String>
+    ) = !bestAlgorithm.isHgs() && indifferentAlgorithms.size < allAlgorithms.size - 1
 
     private fun Map<String, AlgorithmStats>.bestAlgorithmError(metric: QualityIndicator): String {
         return map { (algorithm, results) ->
@@ -190,6 +228,8 @@ class WinnersCounter(val includeIndifferent: Boolean = true) {
     }
 
     enum class Stat { MIN, MAX, AVERAGE, ERROR }
+
+    enum class WinnerType { WEAK, SOFT, STRONG }
 }
 
 private fun Double.roundedString(algorithm: String? = null, bestAlgorithm: String? = null, error: Double): String {
