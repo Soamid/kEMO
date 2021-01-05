@@ -11,6 +11,7 @@ import kotlinx.coroutines.runBlocking
 import org.moeaframework.core.NondominatedPopulation
 import org.moeaframework.core.Population
 import org.moeaframework.core.Problem
+import org.moeaframework.core.fitness.FitnessBasedArchive
 
 open class ParallelHGS(
     problem: Problem,
@@ -21,6 +22,8 @@ open class ParallelHGS(
     budget: Int? = null
 ) :
     HGS(problem, driverBuilder, population, parameters, nodeFactory, budget) {
+
+    private val archive: FitnessBasedArchive = createFitnessBasedArchive(null)
 
     override fun runMetaepoch(): Boolean {
         return runBlocking {
@@ -41,7 +44,13 @@ open class ParallelHGS(
         }
     }
 
+    override fun getResult(): NondominatedPopulation {
+        return archive
+    }
+
     protected open fun updateFinalizedPopulations(node: Node) {
-        finalizedPopulations[node] = node.finalizedPopulation.toList()
+        val solutions = node.finalizedPopulation.toList()
+        finalizedPopulations[node] = solutions
+        archive.addAll(solutions)
     }
 }

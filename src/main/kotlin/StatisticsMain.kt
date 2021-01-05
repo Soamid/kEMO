@@ -1,6 +1,7 @@
 import pl.edu.agh.kemo.algorithm.HGSType
 import pl.edu.agh.kemo.simulation.QualityIndicator
 import pl.edu.agh.kemo.simulation.StatisticsGenerator
+import pl.edu.agh.kemo.tools.Stat
 import java.util.EnumSet
 
 fun main() {
@@ -26,13 +27,13 @@ fun main() {
 //            "UF12",
 //            "UF13"
         ),
-        hgsTypes = EnumSet.of(HGSType.PARALLEL, HGSType.HOPSO),
+        hgsTypes = EnumSet.of(HGSType.CLASSIC, HGSType.PARALLEL, HGSType.HOPSO),
         metrics = EnumSet.of(QualityIndicator.IGD, QualityIndicator.SPACING, QualityIndicator.HYPERVOLUME),
         runRange = 0..29
     )
         .apply {
 //            showStatistics()
 //            showWinners()
-            printLatexComparisonTable()
+            printLatexComparisonTable(listOf(Stat.MIN, Stat.AVERAGE, Stat.MAX, Stat.ERROR))
         }
 }

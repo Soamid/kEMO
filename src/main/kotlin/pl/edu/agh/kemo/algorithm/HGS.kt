@@ -154,15 +154,20 @@ open class HGS(
     private fun createEpsilonBoxDominanceArchive(it: List<Solution>) =
         EpsilonBoxDominanceArchive(EpsilonHelper.getEpsilon(problem), it)
 
-    private fun createFitnessBasedArchive(it: List<Solution>) =
-        FitnessBasedArchive(
+    protected fun createFitnessBasedArchive(solutions: List<Solution>?): FitnessBasedArchive {
+        val archive = FitnessBasedArchive(
             CrowdingDistanceFitnessEvaluator(), when (problem.numberOfObjectives) {
+
                 2 -> 100
                 3 -> 150
                 5 -> 800
                 else -> 100
-            }, it
+            }
         )
+        solutions?.let { archive.addAll(it) }
+        return archive
+    }
+
 
     override fun iterate() {
 //        printStatus()

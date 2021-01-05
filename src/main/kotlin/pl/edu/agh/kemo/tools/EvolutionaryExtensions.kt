@@ -33,6 +33,7 @@ fun Population.average(): List<RealVariable>? {
                 val upperBound = representant.upperBound
                 val averageValue = solutionsVariables.map { variables -> variables[solutionIndex].value }
                     .average()
+                    .let {  minOf(maxOf(it, lowerBound), upperBound) }
                 RealVariable(averageValue, lowerBound, upperBound)
             }
     }

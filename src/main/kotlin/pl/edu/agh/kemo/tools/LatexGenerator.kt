@@ -7,18 +7,22 @@ import pl.edu.agh.kemo.simulation.QualityIndicator
 import pl.edu.agh.kemo.simulation.accumulatorsFromCSV
 import pl.edu.agh.kemo.simulation.calculateStatisticalSignificance
 import java.lang.IllegalStateException
+import java.util.EnumSet
+
+enum class Stat(val label: String) { MIN("Min"), MAX("Max"), AVERAGE("Average"), ERROR("Error") }
 
 fun printMetricsComparisonTable(
     problems: List<String>,
     algorithmVariants: List<String>,
     runRange: IntRange,
-    metric: QualityIndicator
+    metric: QualityIndicator,
+    statistics: List<Stat>
 ) {
     val winnersCounter = WinnersCounter()
     val softWinnersCounter = WinnersCounter(winnerType = WinnersCounter.WinnerType.SOFT)
     val strongWinnersCounter = WinnersCounter(winnerType = WinnersCounter.WinnerType.STRONG)
 
-    val columnsCount = algorithmVariants.size * 4
+    val columnsCount = algorithmVariants.size * statistics.size
     val tableBegin = """\begin{tabular}{|l|*{$columnsCount}{r|}}"""
 
     val metricHeader = """\multicolumn{${columnsCount + 1}}{|c|}{${metric.fullName}}\\"""
@@ -27,13 +31,13 @@ fun printMetricsComparisonTable(
         separator = " & ",
         prefix = " & ",
         postfix = """\\"""
-    ) { """\multicolumn{4}{|c|}{$it}""" }
+    ) { """\multicolumn{${statistics.size}}{|c|}{$it}""" }
 
     val statsHeader = algorithmVariants.joinToString(
         separator = " & ",
         prefix = "Problem & ",
         postfix = """\\"""
-    ) { """Min & Mean & Max & Error""" }
+    ) { statistics.joinToString(separator = " & ") { it.label } }
 
     val rows = problems.map { problem ->
 
@@ -56,17 +60,41 @@ fun printMetricsComparisonTable(
                 postfix = """\\"""
             ) { algorithm ->
                 val result = indicatorResults[algorithm]?.get(metric.fullName) ?: throw IllegalStateException()
-                val min = result.min.roundedString(algorithm, winnersCounter.bestMin, result.stdev)
-                val average = result.average.roundedString(algorithm, winnersCounter.bestAverage, result.stdev)
-                val max = result.max.roundedString(algorithm, winnersCounter.bestMax, result.stdev)
-                val error = result.stdev.roundedString(algorithm, winnersCounter.bestError, result.stdev)
-                "$min & $average & $max & $error"
+
+                val min = if (Stat.MIN in statistics) result.min.roundedString(
+                    algorithm,
+                    winnersCounter.bestMin,
+                    strongWinnersCounter.bestMin,
+                    result.stdev
+                ) else null
+                val average = if (Stat.AVERAGE in statistics) result.average.roundedString(
+                    algorithm,
+                    winnersCounter.bestAverage,
+                    strongWinnersCounter.bestAverage,
+                    result.stdev
+                ) else null
+                val max = if (Stat.MAX in statistics) result.max.roundedString(
+                    algorithm,
+                    winnersCounter.bestMax,
+                    strongWinnersCounter.bestMax,
+                    result.stdev
+                ) else null
+                val error = if (Stat.ERROR in statistics) result.stdev.roundedString(
+                    algorithm,
+                    winnersCounter.bestError,
+                    null,
+                    result.stdev
+                ) else null
+
+                listOfNotNull(min, average, max, error)
+                    .joinToString(separator = " & ")
             }
     }
 
-    val summaryWins = getSummaryWinsRow(algorithmVariants, winnersCounter, label = "All Wins")
-    val summarySoftWins = getSummaryWinsRow(algorithmVariants, strongWinnersCounter, label = "Soft wins")
-    val summaryStrongWins = getSummaryWinsRow(algorithmVariants, strongWinnersCounter, label = "Strong wins")
+    val summaryWins = getSummaryWinsRow(algorithmVariants, winnersCounter, label = "All Wins", statistics)
+    val summarySoftWins = getSummaryWinsRow(algorithmVariants, softWinnersCounter, label = "Soft wins", statistics)
+    val summaryStrongWins =
+        getSummaryWinsRow(algorithmVariants, strongWinnersCounter, label = "Strong wins", statistics)
 
     println("""\resizebox{\textwidth}{!}{""")
     println(tableBegin)
@@ -91,17 +119,15 @@ fun printMetricsComparisonTable(
     println()
 }
 
+
 private fun getSummaryWinsRow(
     algorithmVariants: List<String>,
     winnersCounter: WinnersCounter,
-    label: String
-) = algorithmVariants.flatMap {
-    listOf(
-        winnersCounter.formatWinner(it, WinnersCounter.Stat.MIN),
-        winnersCounter.formatWinner(it, WinnersCounter.Stat.AVERAGE),
-        winnersCounter.formatWinner(it, WinnersCounter.Stat.MAX),
-        winnersCounter.formatWinner(it, WinnersCounter.Stat.ERROR)
-    )
+    label: String,
+    statistics: List<Stat>
+) = algorithmVariants.flatMap { algorithm ->
+    statistics.map { winnersCounter.formatWinner(algorithm, it) }
+
 }.joinToString(separator = " & ", prefix = "$label & ", postfix = """\\""")
 
 class WinnersCounter(val winnerType: WinnerType = WinnerType.WEAK) {
@@ -222,23 +248,34 @@ class WinnersCounter(val winnerType: WinnerType = WinnerType.WEAK) {
     ): String {
         val winCount = counter.getOrDefault(algorithm + stat.name, 0)
         if (bestWinner(stat) == winCount) {
-            return """\textbf{$winCount}"""
+            return when (winnerType) {
+                WinnerType.WEAK -> """\textbf{$winCount}"""
+                WinnerType.SOFT -> """\textbf{$winCount}"""
+                WinnerType.STRONG -> """\textcolor{agh_red}{\textbf{$winCount}}"""
+            }
         }
         return winCount.toString()
     }
 
-    enum class Stat { MIN, MAX, AVERAGE, ERROR }
-
     enum class WinnerType { WEAK, SOFT, STRONG }
 }
 
-private fun Double.roundedString(algorithm: String? = null, bestAlgorithm: String? = null, error: Double): String {
+private fun Double.roundedString(
+    algorithm: String? = null,
+    bestAlgorithm: String? = null,
+    strongBestAlgorithm: String? = null,
+    error: Double
+): String {
     val errorString = "%.10f".format(error)
     val (decimal, fractional) = errorString.split(",")
     val decimalPartLength = if (decimal == "0") 0 else decimal.length
     val nonZeroErrorDigitIndex = fractional.indexOfFirst { it != '0' }
     val precision = maxOf(nonZeroErrorDigitIndex + 2 - decimalPartLength, 0)
     val formattedValue = "%.${precision}f".format(this)
+
+    if (strongBestAlgorithm != null && algorithm == strongBestAlgorithm) {
+        return """\textcolor{agh_red}{\textbf{$formattedValue}}"""
+    }
     if (bestAlgorithm != null && algorithm == bestAlgorithm) {
         return """\textbf{$formattedValue}"""
     }

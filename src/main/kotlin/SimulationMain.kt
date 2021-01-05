@@ -34,7 +34,7 @@ fun main() {
         ),
         budget = 300_000,
         samplingFrequency = 1000,
-        hgsTypes = EnumSet.of(HGSType.PARALLEL, HGSType.HOPSO),
+        hgsTypes = EnumSet.of(HGSType.CLASSIC),
         metrics = EnumSet.of(QualityIndicator.IGD, QualityIndicator.SPACING, QualityIndicator.HYPERVOLUME),
         repetitions = 30,
         startRunNo = 0

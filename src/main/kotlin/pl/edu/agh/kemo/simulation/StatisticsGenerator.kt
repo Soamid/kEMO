@@ -6,6 +6,7 @@ import org.moeaframework.IndicatorResult
 import org.moeaframework.util.statistics.KruskalWallisTest
 import org.moeaframework.util.statistics.MannWhitneyUTest
 import pl.edu.agh.kemo.algorithm.HGSType
+import pl.edu.agh.kemo.tools.Stat
 import pl.edu.agh.kemo.tools.WinnerCounter
 import pl.edu.agh.kemo.tools.algorithmVariants
 import pl.edu.agh.kemo.tools.average
@@ -52,9 +53,9 @@ class StatisticsGenerator(
         winnerCounter.printSummary()
     }
 
-    fun printLatexComparisonTable() {
+    fun printLatexComparisonTable(statistics : List<Stat>) {
         for (metric in metrics) {
-            printMetricsComparisonTable(problems, algorithmVariants, runRange, metric)
+            printMetricsComparisonTable(problems, algorithmVariants, runRange, metric, statistics)
         }
     }
 
