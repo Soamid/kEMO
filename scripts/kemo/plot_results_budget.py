@@ -2,11 +2,12 @@ import pathlib
 import re
 from typing import NamedTuple, Tuple
 
+import matplotlib
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
-RESULTS_DIR_PATH: pathlib.Path = pathlib.Path('../results_fba')
+RESULTS_DIR_PATH: pathlib.Path = pathlib.Path('../results_budget')
 PLOTS_DIR_PATH: pathlib.Path = pathlib.Path('../plots')
 
 BENCHMARK_PATTERN = re.compile(r'(?P<benchmark>[\w|\-]+\d)_metrics_(?P<attempt>\d+)\.csv')
@@ -31,6 +32,18 @@ COLOURS_FOR_OPTIMIZERS = {
 
 STANDARD_ALPHA = 0.2
 STANDARD_LINE_WIDTH = 1.5
+
+META_OPTIMIZERS_PLOT_NAMES = {
+    '': '',
+    'PHGS': 'MO-EHGS',
+    'HOPSO': 'MO-eps-EHGS',
+}
+
+META_OPTIMIZERS_LINES = {
+    '': '-.',
+    'PHGS': '--',
+    'HOPSO': '-',
+}
 
 
 class BenchmarkDescriptor(NamedTuple):
@@ -132,11 +145,13 @@ def main() -> None:
             for column in columns:
                 max_value = sanitized_results.loc[benchmark][column, 'upper_limit'].max()
                 min_value = sanitized_results.loc[benchmark][column, 'lower_limit'].min()
-                fig = plt.figure()
+                fig = plt.figure(figsize=(8, 5))
                 ax = fig.add_subplot(1, 1, 1)
                 try:
                     for meta_optimizer, colour in COLOURS_FOR_OPTIMIZERS.items():
                         series = sanitized_results.loc[benchmark, optimizer, meta_optimizer]
+                        meta_optimizer_label = META_OPTIMIZERS_PLOT_NAMES[meta_optimizer]
+                        meta_optimizer_line = META_OPTIMIZERS_LINES[meta_optimizer]
                         ax.fill_between(
                             series['NFE-Level', 'mean'], series[column, 'lower_limit'], series[column, 'upper_limit'],
                             alpha=STANDARD_ALPHA,
@@ -144,9 +159,9 @@ def main() -> None:
                         )
                         ax.plot(
                             series['NFE-Level', 'mean'], series[column, 'mean'],
-                            '-',
+                            meta_optimizer_line,
                             color=colour,
-                            label=f"{meta_optimizer}+{optimizer}" if meta_optimizer != '' else optimizer,
+                            label=f"{meta_optimizer_label}+{optimizer}" if meta_optimizer != '' else optimizer,
                             linewidth=STANDARD_LINE_WIDTH,
                         )
                         ax.plot(
@@ -154,14 +169,14 @@ def main() -> None:
                             ':',
                             color=colour,
                             alpha=1.0 - STANDARD_ALPHA,
-                            linewidth=STANDARD_LINE_WIDTH*0.5,
+                            linewidth=STANDARD_LINE_WIDTH * 0.5,
                         )
                         ax.plot(
                             series['NFE-Level', 'mean'], series[column, 'upper_limit'],
                             ':',
                             color=colour,
                             alpha=1.0 - STANDARD_ALPHA,
-                            linewidth=STANDARD_LINE_WIDTH*0.5,
+                            linewidth=STANDARD_LINE_WIDTH * 0.5,
                         )
                     ax.set_xlabel("NFE")
                     if column == 'Hypervolume':
@@ -169,9 +184,14 @@ def main() -> None:
                         if rounded_max_value < max_value:
                             rounded_max_value += 0.1
                         ax.set_yscale('function', functions=(power10, np.log10))
+                        if benchmark == 'UF11':
+                            rounded_max_value = 0.25
                         ax.set(xlim=(0, 300000), ylim=(0.0, rounded_max_value))
                         ax.set_ylabel("hypervolume")
-                        ax.legend(loc='lower right', frameon=False)
+                        if benchmark == 'UF11':
+                            ax.legend(loc='upper left', frameon=False)
+                        else:
+                            ax.legend(loc='lower right', frameon=False)
                     elif column == 'InvertedGenerationalDistance':
                         ax.set_yscale('log')
                         effective_min = 0.1
@@ -180,6 +200,8 @@ def main() -> None:
                         effective_max = 10.0
                         while effective_max < max_value and effective_max < 10.0:
                             effective_max *= 10.0
+                        if benchmark == 'UF1':
+                            effective_max = 1.0
                         ax.set(xlim=(0, 300000), ylim=(effective_min, effective_max))
                         ax.set_ylabel("inverted generational distance")
                         ax.legend(loc='upper right', frameon=False)
@@ -191,9 +213,13 @@ def main() -> None:
                         effective_max = 0.1
                         while effective_max < max_value and effective_max < 1.0:
                             effective_max += 0.1
+                        if benchmark == 'UF1':
+                            effective_min = 0.001
                         ax.set(xlim=(0, 300000), ylim=(effective_min, effective_max))
                         ax.set_ylabel("spacing")
                         ax.legend(loc='upper right', frameon=False)
+                    ax.spines['top'].set_visible(False)
+                    ax.spines['right'].set_visible(False)
                     plt.tight_layout()
                     plt.savefig(PLOTS_DIR_PATH / f'{benchmark}_{optimizer}_{column}.pdf')
                 except (KeyError, ValueError) as _:
