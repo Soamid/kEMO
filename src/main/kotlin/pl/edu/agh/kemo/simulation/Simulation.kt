@@ -110,10 +110,14 @@ abstract class Simulation(
     abstract fun configureExecutor(problem: String, algorithm: String, runNo: Int, executor: Executor): Executor
 }
 
-enum class QualityIndicator(val fullName: String, val shortName: String) {
-    HYPERVOLUME("Hypervolume", "hv"),
-    IGD("InvertedGenerationalDistance", "igd"),
-    SPACING("Spacing", "spacing")
+enum class QualityIndicator(val fullName: String, val shortName: String, val type: BestMetricType) {
+    HYPERVOLUME("Hypervolume", "hv", BestMetricType.MAX),
+    IGD("InvertedGenerationalDistance", "igd", BestMetricType.MIN),
+    SPACING("Spacing", "spacing", BestMetricType.MIN)
+}
+
+enum class BestMetricType {
+    MIN, MAX
 }
 
 fun String.toQualityIndicator(): QualityIndicator = QualityIndicator.values()

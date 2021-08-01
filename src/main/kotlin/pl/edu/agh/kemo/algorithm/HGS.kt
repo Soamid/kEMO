@@ -196,7 +196,9 @@ open class HGS(
 
     protected open fun runMetaepoch(): Boolean {
         for (level in levelNodes.keys.asSequence()) {
-            levelNodes[level]?.forEach {
+            levelNodes[level]
+            ?.filter { it.alive }
+            ?.forEach {
                 val epochCost = it.runMetaepoch()
                 numberOfEvaluations += calculateCost(level, epochCost)
                 if (isBudgetMet()) {

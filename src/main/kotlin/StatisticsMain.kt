@@ -34,6 +34,6 @@ fun main() {
         .apply {
 //            showStatistics()
 //            showWinners()
-            printLatexComparisonTable(listOf(Stat.MIN, Stat.AVERAGE, Stat.MAX, Stat.ERROR))
+            printLatexComparisonTable(listOf(Stat.MIN, Stat.AVERAGE, Stat.MAX, Stat.ERROR, Stat.IMRPROVEMENT))
         }
 }

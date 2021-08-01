@@ -2,14 +2,17 @@ package pl.edu.agh.kemo.tools
 
 import org.moeaframework.AlgorithmStats
 import org.moeaframework.IndicatorResult
+import pl.edu.agh.kemo.algorithm.cutHgs
 import pl.edu.agh.kemo.algorithm.isHgs
+import pl.edu.agh.kemo.algorithm.toHgsType
+import pl.edu.agh.kemo.simulation.BestMetricType
 import pl.edu.agh.kemo.simulation.QualityIndicator
 import pl.edu.agh.kemo.simulation.accumulatorsFromCSV
 import pl.edu.agh.kemo.simulation.calculateStatisticalSignificance
+import pl.edu.agh.kemo.simulation.toQualityIndicator
 import java.lang.IllegalStateException
-import java.util.EnumSet
 
-enum class Stat(val label: String) { MIN("Min"), MAX("Max"), AVERAGE("Average"), ERROR("Error") }
+enum class Stat(val label: String) { MIN("Min"), MAX("Max"), AVERAGE("Average"), ERROR("Error"), IMRPROVEMENT("Impr") }
 
 fun printMetricsComparisonTable(
     problems: List<String>,
@@ -31,7 +34,7 @@ fun printMetricsComparisonTable(
         separator = " & ",
         prefix = " & ",
         postfix = """\\"""
-    ) { """\multicolumn{${statistics.size}}{|c|}{$it}""" }
+    ) { """\multicolumn{${statistics.size}}{|c|}{${it.toHgsType()?.displayName ?: it}}""" }
 
     val statsHeader = algorithmVariants.joinToString(
         separator = " & ",
@@ -86,15 +89,19 @@ fun printMetricsComparisonTable(
                     result.stdev
                 ) else null
 
-                listOfNotNull(min, average, max, error)
+                val improvement = if (Stat.IMRPROVEMENT in statistics) improvement(algorithm, result, indicatorResults)
+                    ?.formattedImprovement()
+                else null
+
+                listOfNotNull(min, average, max, error, improvement)
                     .joinToString(separator = " & ")
             }
     }
 
-    val summaryWins = getSummaryWinsRow(algorithmVariants, winnersCounter, label = "All Wins", statistics)
-    val summarySoftWins = getSummaryWinsRow(algorithmVariants, softWinnersCounter, label = "Soft wins", statistics)
+    val summaryWins = getSummaryWinsRow(algorithmVariants, winnersCounter, label = "Weak wins", statistics)
+    val summarySoftWins = getSummaryWinsRow(algorithmVariants, softWinnersCounter, label = "Local wins", statistics)
     val summaryStrongWins =
-        getSummaryWinsRow(algorithmVariants, strongWinnersCounter, label = "Strong wins", statistics)
+        getSummaryWinsRow(algorithmVariants, strongWinnersCounter, label = "Global wins", statistics)
 
     println("""\resizebox{\textwidth}{!}{""")
     println(tableBegin)
@@ -259,6 +266,36 @@ class WinnersCounter(val winnerType: WinnerType = WinnerType.WEAK) {
 
     enum class WinnerType { WEAK, SOFT, STRONG }
 }
+
+private fun improvement(
+    algorithm: String,
+    result: IndicatorResult,
+    indicatorResults: Map<String, AlgorithmStats>
+): Double {
+    return if (algorithm.isHgs()) {
+        val bareAlgo = algorithm.cutHgs()
+        val bareResult = indicatorResults[bareAlgo]?.get(result.indicator) ?: throw IllegalStateException()
+//
+//        var worst = indicatorResults.values.map { it.get(result.indicator).max }.maxOrNull()
+//            ?: throw IllegalStateException()
+//        var best = indicatorResults.values.map { it.get(result.indicator).min }.minOrNull()
+//            ?: throw IllegalStateException()
+//
+//        if( result.indicator.toQualityIndicator().type == BestMetricType.MAX) {
+//            worst = best.also { best = worst }
+//        }
+//
+//        val spread = best - worst
+//
+//        return (result.average - worst) / spread - (bareResult.average - worst) / spread
+        return (result.average - bareResult.average) / bareResult.average * if(result.indicator.toQualityIndicator().type == BestMetricType.MAX) 1 else -1
+    } else {
+        0.0
+    }
+}
+
+private fun Double.formattedImprovement() = String.format("%.2f", this * 100.0) + "\\%"
+
 
 private fun Double.roundedString(
     algorithm: String? = null,

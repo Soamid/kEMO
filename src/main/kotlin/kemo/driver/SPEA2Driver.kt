@@ -35,7 +35,7 @@ class SPEA2DriverBuilder : DriverBuilder<SPEA2> {
 class SPEA2Driver(algorithm: SPEA2, mantissaBits: Int) : Driver<SPEA2>(algorithm, mantissaBits) {
 
     override fun nominateDelegates(): List<Solution> =
-        algorithm.population.toList()
+        algorithm.archive.toList()
 
     override fun getPopulation(): Population = algorithm.population
 }

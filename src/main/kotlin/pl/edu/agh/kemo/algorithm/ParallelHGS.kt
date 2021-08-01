@@ -28,6 +28,7 @@ open class ParallelHGS(
     override fun runMetaepoch(): Boolean {
         return runBlocking {
             val nodeCosts = levelNodes.values.flatten()
+                .filter { it.alive }
                 .map { node ->
                     async(Dispatchers.Default) {
                         val cost = node.runMetaepoch()

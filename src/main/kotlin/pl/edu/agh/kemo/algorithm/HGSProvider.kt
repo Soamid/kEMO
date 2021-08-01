@@ -19,12 +19,17 @@ import java.util.Properties
 
 val MAX_EVALUATIONS_PROPERTY = "maxEvaluations"
 
-enum class HGSType(val shortName: String) {
+enum class HGSType(val shortName: String, val displayName: String) {
 
-    CLASSIC("HGS"), PARALLEL("PHGS"), HOPSO("HOPSO");
+    CLASSIC("HGS","MO-mHGS"), PARALLEL("PHGS","MO-EHGS"), HOPSO("HOPSO","MO-$\\epislon$-EHGS");
 }
 
+fun String.toHgsType() = HGSType.values().find {  startsWith(it.shortName) }
+
 fun String.isHgs() = HGSType.values().any { startsWith(it.shortName) }
+
+fun String.cutHgs() = split("+").let { (_, bare) -> bare }
+
 
 class HGSProvider : AlgorithmProvider() {
 

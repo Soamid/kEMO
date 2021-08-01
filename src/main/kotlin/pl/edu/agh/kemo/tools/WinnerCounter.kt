@@ -100,3 +100,4 @@ fun bestMetricValue(metric: String, value1: Double, value2: Double): Double {
         QualityIndicator.SPACING -> min(value1, value2)
     }
 }
+
