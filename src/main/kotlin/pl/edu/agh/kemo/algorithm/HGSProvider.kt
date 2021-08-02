@@ -21,8 +21,17 @@ val MAX_EVALUATIONS_PROPERTY = "maxEvaluations"
 
 enum class HGSType(val shortName: String, val displayName: String) {
 
-    CLASSIC("HGS","MO-mHGS"), PARALLEL("PHGS","MO-EHGS"), HOPSO("HOPSO","MO-$\\epislon$-EHGS");
+    CLASSIC("HGS","MO-mHGS"),
+    PARALLEL("PHGS","MO-EHGS"),
+    HOPSO("HOPSO","MO-$\\epislon$-EHGS");
 }
+
+enum class ProgressIndicatorType {
+    HYPERVOLUME
+}
+
+fun TypedProperties.getProgressIndicatorType(defaultValue : ProgressIndicatorType) = getString("progressIndicator", defaultValue.toString())
+    .let { ProgressIndicatorType.valueOf(it) }
 
 fun String.toHgsType() = HGSType.values().find {  startsWith(it.shortName) }
 
@@ -70,7 +79,8 @@ class HGSProvider : AlgorithmProvider() {
                 mantissaBits = listOf(4, 16, 64),
                 referencePoint = listOf(), // TODO move to pl.edu.agh.kemo.algorithm.HGS init and calculate?
                 sproutiveness = 3,
-                subPopulationSizes = listOf(64, 20, 10)
+                subPopulationSizes = listOf(64, 20, 10),
+                progressIndicatorType = typedProperties.getProgressIndicatorType(defaultValue = ProgressIndicatorType.HYPERVOLUME)
             )
             val populationSize = typedProperties.getDouble("populationSize", 100.0).toInt()
             val population = RandomInitialization(problem, populationSize)

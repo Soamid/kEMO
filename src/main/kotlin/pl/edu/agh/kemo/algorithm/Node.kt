@@ -1,10 +1,10 @@
 package pl.edu.agh.kemo.algorithm
 
+import kemo.algorithm.progress.ProgressIndicator
 import org.moeaframework.core.NondominatedPopulation
 import org.moeaframework.core.Population
 import org.moeaframework.core.Problem
 import org.moeaframework.core.Solution
-import org.moeaframework.core.indicator.Hypervolume
 import org.moeaframework.core.operator.real.PM
 import org.moeaframework.core.variable.RealVariable
 import pl.edu.agh.kemo.tools.BlurredProblem
@@ -19,7 +19,7 @@ open class Node(
     driverBuilder: DriverBuilder<*>,
     val level: Int,
     var population: Population,
-    private val problemReferenceSet: NondominatedPopulation,
+    val problemReferenceSet: NondominatedPopulation,
     private val parameters: HGSConfiguration
 ) {
     var alive: Boolean = true
@@ -35,25 +35,22 @@ open class Node(
     var delegates: List<Solution> = listOf()
         protected set
 
-    var previousHypervolume: Double? = null
-        private set
-
-    var hypervolume: Double = 0.0
-        private set
-
     open val finalizedPopulation: Population
         get() = population
 
-    private val problem: BlurredProblem
+    val problem: BlurredProblem = BlurredProblem(problem, parameters.fitnessErrors[level])
 
-    private var relativeHypervolume: Double? = null
+    private val progressIndicator: ProgressIndicator = ProgressIndicator.forNode(this, parameters.progressIndicatorType)
+
+    val previousProgressValue: Double? by progressIndicator::previousValue
+
+    val currentProgressValue: Double by progressIndicator::currentValue
 
     private val log = loggerFor<Node>()
 
     private var previousNumberOfEvaluations: Int = 0
 
     init {
-        this.problem = BlurredProblem(problem, parameters.fitnessErrors[level])
         this.driver =
             driverBuilder.create(
                 this.problem,
@@ -74,7 +71,7 @@ open class Node(
         population = driver.getPopulation()
         delegates = driver.nominateDelegates()
 
-        updateDominatedHypervolume(NondominatedPopulation(population))
+        updateNodeProgress(NondominatedPopulation(population))
         recalculateCenter()
 
         val epochCost = driver.numberOfEvaluations - previousNumberOfEvaluations
@@ -82,24 +79,8 @@ open class Node(
         return epochCost
     }
 
-    private fun updateDominatedHypervolume(nondominatedPopulation: NondominatedPopulation) {
-        previousHypervolume = hypervolume
-//        val minPoint = (0 until problem.numberOfObjectives).map { 0.0 }.toDoubleArray()
-        val resultHypervolume = Hypervolume(problem.innerProblem, problemReferenceSet).run {
-            evaluate(nondominatedPopulation)
-        }
-        relativeHypervolume?.let {
-            hypervolume = resultHypervolume - it
-            if (hypervolume > 0.0) {
-//                Plot()
-//                    .add("current pop", nondominatedPopulation)
-//                    .add("reference set", referenceSet)
-//                    .showDialog()
-            }
-        }
-        if (relativeHypervolume == null) {
-            relativeHypervolume = resultHypervolume
-        }
+    private fun updateNodeProgress(nondominatedPopulation: NondominatedPopulation) {
+        progressIndicator.updateProgress(nondominatedPopulation)
     }
 
     fun recalculateCenter() {

@@ -1,5 +1,6 @@
 package pl.edu.agh.kemo.algorithm
 
+import kemo.algorithm.progress.ProgressIndicator
 import org.apache.commons.math3.linear.MatrixUtils
 import org.apache.commons.math3.util.Precision
 import org.moeaframework.algorithm.AbstractAlgorithm
@@ -35,7 +36,8 @@ data class HGSConfiguration(
     val metaepochLength: Int,
     val maxLevel: Int,
     val maxSproutsCount: Int,
-    val sproutiveness: Int
+    val sproutiveness: Int,
+    val progressIndicatorType: ProgressIndicatorType
 )
 
 fun interface NodeFactory {
@@ -238,9 +240,9 @@ open class HGS(
     }
 
     private fun isNotProgressing(node: Node): Boolean =
-        node.previousHypervolume?.let {
+        node.previousProgressValue?.let {
             val progressRatio = minProgressRatios[node.level] / 2.0.pow(node.level)
-            return it > 0 && (node.hypervolume / (it + Precision.EPSILON) - 1.0) < progressRatio
+            return it > 0 && (node.currentProgressValue / (it + Precision.EPSILON) - 1.0) < progressRatio
         } ?: false
 
     private fun trimRedundant(nodes: List<Node>) {
