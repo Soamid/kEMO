@@ -21,7 +21,7 @@ tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile> {
 
 repositories {
     mavenCentral()
-    maven("https://dl.bintray.com/mipt-npm/scientifik")
+    maven("https://repo.kotlin.link")
 }
 
 tasks.withType<Test> {
@@ -39,7 +39,7 @@ dependencies {
     // https://mvnrepository.com/artifact/me.tongfei/progressbar
 
 
-    api(group="scientifik", name="kmath-core", version = "0.1.3")
+    api(group="space.kscience", name="kmath-core", version = "0.2.0")
     implementation("io.kotest:kotest-runner-console-jvm:4.1.3")
 
     testImplementation("io.kotest:kotest-runner-junit5-jvm:4.1.3") // for kotest framework
