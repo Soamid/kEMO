@@ -8,7 +8,7 @@ import org.moeaframework.core.PopulationIO
 import pl.edu.agh.kemo.tools.toTrimmedCSV
 import java.io.File
 
-const val RESULTS_PATH = "results_global_archive"
+const val RESULTS_PATH = "results_020821"
 
 fun saveMetrics(
     resultAccumulators: Map<String, MutableList<Accumulator>>,

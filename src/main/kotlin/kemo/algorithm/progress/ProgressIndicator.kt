@@ -16,6 +16,7 @@ interface ProgressIndicator {
 
         fun forNode(node: Node, type: ProgressIndicatorType) : ProgressIndicator = when (type) {
             ProgressIndicatorType.HYPERVOLUME -> HypervolumeProgressIndicator(node.problem, node.problemReferenceSet)
+            ProgressIndicatorType.IGD -> IGDIndicator(node.problem, node.problemReferenceSet)
         }
     }
 }

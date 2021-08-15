@@ -3,6 +3,7 @@ package pl.edu.agh.kemo.simulation
 import me.tongfei.progressbar.ProgressBar
 import org.moeaframework.AlgorithmStats
 import org.moeaframework.IndicatorResult
+import org.moeaframework.util.TypedProperties
 import org.moeaframework.util.statistics.KruskalWallisTest
 import org.moeaframework.util.statistics.MannWhitneyUTest
 import pl.edu.agh.kemo.algorithm.HGSType
@@ -20,10 +21,9 @@ class StatisticsGenerator(
     algorithms: List<String>,
     hgsTypes: EnumSet<HGSType>,
     private val metrics: EnumSet<QualityIndicator>,
-    private val runRange: IntRange
-) {
-
-    private val algorithmVariants = hgsTypes.algorithmVariants(algorithms)
+    private val runRange: IntRange,
+    propertiesSets: TypedProperties? = null
+) : ResultsProcessor(algorithms, hgsTypes, propertiesSets) {
 
     fun showStatistics() {
         for (problem in problems) {
@@ -38,11 +38,11 @@ class StatisticsGenerator(
     fun showWinners() {
         val winnerCounter = WinnerCounter()
 
-        val progressBar = ProgressBar("Calculating winners", (problems.size * algorithmVariants.size).toLong())
+        val progressBar = ProgressBar("Calculating winners", (problems.size * allAlgorithmVariants.size).toLong())
         progressBar.use {
             for (problem in problems) {
                 val algorithmResults = calculateAlgorithmResults(problem)
-                for (algorithmVariant in algorithmVariants) {
+                for (algorithmVariant in allAlgorithmVariants) {
                     val accumulatorsFromCSV = accumulatorsFromCSV(problem, algorithmVariant, runRange)
                     val averageAccumulator = accumulatorsFromCSV.average()
                     winnerCounter.update(averageAccumulator, algorithmVariant, problem, algorithmResults)
@@ -55,13 +55,13 @@ class StatisticsGenerator(
 
     fun printLatexComparisonTable(statistics : List<Stat>) {
         for (metric in metrics) {
-            printMetricsComparisonTable(problems, algorithmVariants, runRange, metric, statistics)
+            printMetricsComparisonTable(problems, allAlgorithmVariants, runRange, metric, statistics)
         }
     }
 
     private fun calculateAlgorithmResults(problem: String): Map<String, AlgorithmStats> {
         val algorithmResults = mutableMapOf<String, AlgorithmStats>()
-        for (algorithmVariant in algorithmVariants) {
+        for (algorithmVariant in allAlgorithmVariants) {
             val accumulatorsFromCSV = accumulatorsFromCSV(problem, algorithmVariant, runRange)
             val algorithmResult = AlgorithmStats(algorithmVariant).apply {
                 val metricsMap = mutableMapOf<String, MutableList<Double>>()

@@ -10,7 +10,8 @@ import pl.edu.agh.kemo.simulation.QualityIndicator
 import pl.edu.agh.kemo.simulation.accumulatorsFromCSV
 import pl.edu.agh.kemo.simulation.calculateStatisticalSignificance
 import pl.edu.agh.kemo.simulation.toQualityIndicator
-import java.lang.IllegalStateException
+import java.text.DecimalFormat
+
 
 enum class Stat(val label: String) { MIN("Min"), MAX("Max"), AVERAGE("Average"), ERROR("Error"), IMRPROVEMENT("Impr") }
 
@@ -288,7 +289,7 @@ private fun improvement(
 //        val spread = best - worst
 //
 //        return (result.average - worst) / spread - (bareResult.average - worst) / spread
-        return (result.average - bareResult.average) / bareResult.average * if(result.indicator.toQualityIndicator().type == BestMetricType.MAX) 1 else -1
+        return (result.average - bareResult.average) / bareResult.average * if (result.indicator.toQualityIndicator().type == BestMetricType.MAX) 1 else -1
     } else {
         0.0
     }
@@ -304,7 +305,7 @@ private fun Double.roundedString(
     error: Double
 ): String {
     val errorString = "%.10f".format(error)
-    val (decimal, fractional) = errorString.split(",")
+    val (decimal, fractional) = errorString.split(getSystemDecimalSeparator())
     val decimalPartLength = if (decimal == "0") 0 else decimal.length
     val nonZeroErrorDigitIndex = fractional.indexOfFirst { it != '0' }
     val precision = maxOf(nonZeroErrorDigitIndex + 2 - decimalPartLength, 0)
@@ -317,4 +318,10 @@ private fun Double.roundedString(
         return """\textbf{$formattedValue}"""
     }
     return formattedValue
+}
+
+fun getSystemDecimalSeparator(): Char {
+    val format = DecimalFormat.getInstance() as DecimalFormat
+    val symbols = format.decimalFormatSymbols
+    return symbols.decimalSeparator
 }

@@ -3,27 +3,28 @@ package pl.edu.agh.kemo.simulation
 import org.moeaframework.analysis.collector.Accumulator
 import org.moeaframework.analysis.plot.Plot
 import org.moeaframework.problem.StandardProblems
+import org.moeaframework.util.TypedProperties
 import pl.edu.agh.kemo.algorithm.HGSType
+import pl.edu.agh.kemo.algorithm.cartesian
+import pl.edu.agh.kemo.algorithm.isHgs
 import pl.edu.agh.kemo.tools.algorithmVariants
 import pl.edu.agh.kemo.tools.average
 import java.util.EnumSet
 
 class PlotGenerator(
     private val problems: List<String>,
-    private val algorithms: List<String>,
-    private val hgsTypes: EnumSet<HGSType>,
+    algorithms: List<String>,
+    hgsTypes: EnumSet<HGSType>,
     private val metrics: EnumSet<QualityIndicator>,
-    private val runRange: IntRange
-) {
-
-    val allAlgorithmVariants = algorithms.flatMap {  hgsTypes.algorithmVariants(it) }
+    private val runRange: IntRange,
+    propertiesSets: TypedProperties? = null
+) : ResultsProcessor(algorithms, hgsTypes, propertiesSets) {
 
     fun saveAlgorithmPlots() {
         for (problem in problems) {
             for (algorithm in algorithms) {
-                val algorithmVariants = hgsTypes.algorithmVariants(algorithm)
-                val accumulators =
-                    algorithmVariants.associateWith { accumulatorsFromCSV(problem, it, runRange).average() }
+                val variantNames = getVariants(algorithm)
+                val accumulators = variantNames.associateWith { accumulatorsFromCSV(problem, it, runRange).average() }
                 saveAlgorithmPlots(accumulators, algorithm, problem)
             }
         }
@@ -47,11 +48,10 @@ class PlotGenerator(
     }
 
     fun saveSummaryPlots() {
-        val algorithmVariants = hgsTypes.algorithmVariants(algorithms)
         for (problem in problems) {
-            for (algorithm in algorithms) {
+            for (algorithm in allAlgorithmVariants) {
                 val accumulators =
-                    algorithmVariants.associateWith { accumulatorsFromCSV(problem, it, runRange).average() }
+                    allAlgorithmVariants.associateWith { accumulatorsFromCSV(problem, it, runRange).average() }
                 saveSummaryPlots(accumulators, problem)
             }
         }
@@ -73,7 +73,7 @@ class PlotGenerator(
     }
 
     fun savePopulationPlots() {
-        for(problemName in problems) {
+        for (problemName in problems) {
             val paretoFront = StandardProblems().getReferenceSet(problemName)
 
             val populations = loadPopulations(problemName, allAlgorithmVariants, runRange)

@@ -9,8 +9,12 @@ import org.moeaframework.analysis.collector.Accumulator
 import org.moeaframework.core.Settings
 import org.moeaframework.core.spi.AlgorithmFactory
 import org.moeaframework.core.spi.ProblemFactory
+import org.moeaframework.util.TypedProperties
 import pl.edu.agh.kemo.algorithm.HGSProvider
 import pl.edu.agh.kemo.algorithm.HGSType
+import pl.edu.agh.kemo.algorithm.cartesian
+import pl.edu.agh.kemo.algorithm.isHgs
+import pl.edu.agh.kemo.algorithm.toInfoString
 import pl.edu.agh.kemo.tools.algorithmVariants
 import pl.edu.agh.kemo.tools.loggerFor
 import java.util.EnumSet
@@ -19,6 +23,9 @@ import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 import kotlin.system.measureTimeMillis
 
+const val DEFAULT_REPETITIONS = 10
+
+const val DEFAULT_POPULATION_SIZE = 64
 
 val SIMULATION_EXECUTOR: ExecutorService = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors())
 
@@ -26,12 +33,14 @@ val SIMULATION_DISPATCHER =
     SIMULATION_EXECUTOR.asCoroutineDispatcher()
 
 abstract class Simulation(
-    protected val repetitions: Int = 10,
+    protected val repetitions: Int = DEFAULT_REPETITIONS,
+    protected val populationSize: Int = DEFAULT_POPULATION_SIZE,
     protected val problems: List<String>,
     protected val algorithms: List<String>,
     protected val hgsTypes: EnumSet<HGSType>,
     private val metrics: EnumSet<QualityIndicator>,
-    private val startRunNo: Int
+    private val startRunNo: Int,
+    private val propertiesSets: TypedProperties? = null
 ) {
     private val log = loggerFor<Simulation>()
 
@@ -54,18 +63,22 @@ abstract class Simulation(
 
                 val algorithmVariants = hgsTypes.algorithmVariants(algorithmName)
 
-
                     for (runNo in startRunNo until (startRunNo + repetitions)) {
                         for (algorithmVariant in algorithmVariants) {
-                            launch(SIMULATION_DISPATCHER) {
-                                log.info("Processing... $algorithmVariant")
-                                val accumulator = runAlgorithmVariant(
-                                    problemName,
-                                    algorithmVariant,
-                                    runNo,
-                                    algorithmTimes
-                                )
-                                accumulator.saveCSV(algorithmVariant, problemName, runNo)
+                            forEachPropertySet(algorithmVariant) { propertySet ->
+                                launch(SIMULATION_DISPATCHER) {
+                                    val variantName = getSimulationName(propertySet, algorithmVariant)
+                                    log.info("Processing... $variantName")
+                                    val accumulator = runAlgorithmVariant(
+                                        problemName,
+                                        algorithmVariant,
+                                        variantName,
+                                        runNo,
+                                        algorithmTimes,
+                                        propertySet
+                                    )
+                                    accumulator.saveCSV(variantName, problemName, runNo)
+                                }
                             }
                         }
                     }
@@ -78,11 +91,22 @@ abstract class Simulation(
         }
     }
 
+    private fun forEachPropertySet(algorithmVariant: String, runner: (propertySet: TypedProperties?) -> Unit) {
+        if(algorithmVariant.isHgs() && propertiesSets != null) {
+            propertiesSets.cartesian().forEach { runner(it) }
+        }
+        else {
+            runner(null)
+        }
+    }
+
     private fun runAlgorithmVariant(
         problemName: String,
         algorithmVariant: String,
+        variantName: String,
         runNo: Int,
-        algorithmTimes: MutableMap<String, Long>
+        algorithmTimes: MutableMap<String, Long>,
+        propertySet: TypedProperties?
     ): Accumulator {
         val instrumenter = Instrumenter()
             .withProblem(problemName)
@@ -92,16 +116,18 @@ abstract class Simulation(
             .also { if (QualityIndicator.SPACING in metrics) it.attachSpacingCollector() }
 
         val runTime = measureTimeMillis {
-            val population = Executor().withProblem(problemName)
+            val population = Executor()
+                .apply { if(propertySet != null) withProperties(propertySet.properties) }
+                .withProblem(problemName)
                 .withAlgorithm(algorithmVariant)
-                .withProperty("populationSize", 64)
+                .withProperty("populationSize", populationSize)
                 .withInstrumenter(instrumenter)
-                .also { configureExecutor(problemName, algorithmVariant, runNo, it) }
+                .also { configureExecutor(problemName, variantName, runNo, it) }
                 .run()
-            population.save(algorithmVariant, problemName, runNo)
+            population.save(variantName, problemName, runNo)
         }
 
-        algorithmTimes[algorithmVariant] = (algorithmTimes[algorithmVariant] ?: 0) + runTime
+        algorithmTimes[variantName] = (algorithmTimes[variantName] ?: 0) + runTime
         return instrumenter.lastAccumulator
     }
 
@@ -122,3 +148,9 @@ enum class BestMetricType {
 
 fun String.toQualityIndicator(): QualityIndicator = QualityIndicator.values()
     .find { it.fullName == this } ?: throw IllegalArgumentException("Unsupported metric: $this")
+
+fun getSimulationName(
+    propertySet: TypedProperties?,
+    algorithmVariant: String
+) = if (propertySet != null) "${algorithmVariant}+${propertySet.toInfoString()}" else algorithmVariant
+

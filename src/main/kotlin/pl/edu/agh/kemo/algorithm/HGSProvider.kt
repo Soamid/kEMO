@@ -9,6 +9,7 @@ import kemo.driver.NSGAIIIDriverBuilder
 import kemo.driver.OMOPSODriverBuilder
 import kemo.driver.SMPSODriverBuilder
 import kemo.driver.SPEA2DriverBuilder
+import org.moeaframework.Executor
 import org.moeaframework.core.Algorithm
 import org.moeaframework.core.Population
 import org.moeaframework.core.Problem
@@ -21,24 +22,65 @@ val MAX_EVALUATIONS_PROPERTY = "maxEvaluations"
 
 enum class HGSType(val shortName: String, val displayName: String) {
 
-    CLASSIC("HGS","MO-mHGS"),
-    PARALLEL("PHGS","MO-EHGS"),
-    HOPSO("HOPSO","MO-$\\epislon$-EHGS");
+    CLASSIC("HGS", "MO-mHGS"),
+    PARALLEL("PHGS", "MO-EHGS"),
+    HOPSO("HOPSO", "MO-$\\epislon$-EHGS");
 }
 
 enum class ProgressIndicatorType {
-    HYPERVOLUME
+    HYPERVOLUME, IGD
 }
 
-fun TypedProperties.getProgressIndicatorType(defaultValue : ProgressIndicatorType) = getString("progressIndicator", defaultValue.toString())
-    .let { ProgressIndicatorType.valueOf(it) }
+fun TypedProperties.setProgressIndicatorTypes(vararg indicatorTypes: ProgressIndicatorType) =
+    setStringArray("progressIndicator", indicatorTypes.map { it.toString() }.toTypedArray())
 
-fun String.toHgsType() = HGSType.values().find {  startsWith(it.shortName) }
+fun TypedProperties.setProgressIndicatorType(indicatorType: ProgressIndicatorType) =
+    setString("progressIndicator", indicatorType.toString())
+
+fun TypedProperties.getProgressIndicatorType(defaultValue: ProgressIndicatorType): ProgressIndicatorType =
+    getString("progressIndicator", defaultValue.toString())
+        .let { ProgressIndicatorType.valueOf(it) }
+
+fun TypedProperties.getProgressIndicatorTypes(defaultValues: Array<ProgressIndicatorType>): List<ProgressIndicatorType> =
+    getStringArray("progressIndicator", defaultValues.map { it.toString() }.toTypedArray())
+        .map { ProgressIndicatorType.valueOf(it) }
+
+fun Executor.withProgressIndicatorType(progressIndicatorType: ProgressIndicatorType) =
+    withProperty("progressIndicator", progressIndicatorType.toString())
+
+fun String.toHgsType() = HGSType.values().find { startsWith(it.shortName) }
 
 fun String.isHgs() = HGSType.values().any { startsWith(it.shortName) }
 
-fun String.cutHgs() = split("+").let { (_, bare) -> bare }
+fun String.cutHgs() = split("+").let { it[1] }
 
+data class PropertyValue(val key: String, val value: Any)
+
+fun TypedProperties.cartesian(): List<TypedProperties> {
+    val setsOfProperties = properties.keys.asSequence()
+        .map { it.toString() }
+        .filter { getStringArray(it, null) != null }
+        .map { key -> getStringArray(key, null).map { PropertyValue(key, it) }.toSet() }
+        .toSet()
+    return cartesianProduct(setsOfProperties).map { properties ->
+         TypedProperties().apply {
+             properties.forEach { fillByKey(it) }
+         }
+    }
+}
+
+fun <T> cartesianProduct(sets: Set<Set<T>>): Set<List<T>> =
+    sets.fold(listOf(listOf<T>())) { acc, set ->
+        acc.flatMap { list -> set.map { element -> list + element } }
+    }.toSet()
+
+
+fun TypedProperties.fillByKey(propertyValue: PropertyValue) = when (propertyValue.key) {
+    "progressIndicator" -> setProgressIndicatorType(ProgressIndicatorType.valueOf(propertyValue.value.toString()))
+    else -> setString(propertyValue.key, propertyValue.value.toString())
+}.let { this }
+
+fun TypedProperties.toInfoString() = properties.entries.joinToString { "(${it.key}=${it.value})" }
 
 class HGSProvider : AlgorithmProvider() {
 
@@ -116,11 +158,11 @@ class HGSProvider : AlgorithmProvider() {
         return null
     }
 
-    private fun String.isHGSName() : Boolean = HGSType.values()
+    private fun String.isHGSName(): Boolean = HGSType.values()
         .map { it.shortName }
         .any { startsWith(it) }
 
-    private fun String.startsWith(hgsType: HGSType) : Boolean = startsWith(hgsType.shortName)
+    private fun String.startsWith(hgsType: HGSType): Boolean = startsWith(hgsType.shortName)
 
     private fun createMutationRates(numberOfVariables: Int): List<Double> {
         return (0..2).map { 1.0 / numberOfVariables }
