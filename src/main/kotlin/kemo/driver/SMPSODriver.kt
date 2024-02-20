@@ -5,6 +5,7 @@ import org.moeaframework.core.Population
 import org.moeaframework.core.Problem
 import org.moeaframework.core.Solution
 import org.moeaframework.core.spi.AlgorithmProvider
+import org.moeaframework.util.TypedProperties
 import pl.edu.agh.kemo.algorithm.Driver
 import pl.edu.agh.kemo.algorithm.DriverBuilder
 import java.util.Properties
@@ -17,12 +18,12 @@ class SMPSODriverBuilder: DriverBuilder<SMPSO> {
         mutationRate: Double,
         crossoverEta: Double,
         crossoverRate: Double,
-        properties: Properties,
+        properties: TypedProperties,
         mantissaBits: Int
     ): Driver<SMPSO> {
         properties.apply {
-            setProperty("mutationProbability", mutationRate.toString())
-            setProperty("perturbationIndex", mutationEta.toString())
+            setDouble("mutationProbability", mutationRate)
+            setDouble("perturbationIndex", mutationEta)
         }
         return SMPSODriver(algorithmProvider.getAlgorithm("SMPSO", properties, problem) as SMPSO, mantissaBits)
     }

@@ -28,10 +28,8 @@ import org.moeaframework.core.fitness.AdditiveEpsilonIndicatorFitnessEvaluator;
 import org.moeaframework.core.fitness.HypervolumeContributionFitnessEvaluator;
 import org.moeaframework.core.fitness.HypervolumeFitnessEvaluator;
 import org.moeaframework.core.fitness.IndicatorFitnessEvaluator;
-import org.moeaframework.core.operator.InjectedInitialization;
+import org.moeaframework.core.initialization.InjectedInitialization;
 import org.moeaframework.core.operator.RandomInitialization;
-import org.moeaframework.core.operator.TournamentSelection;
-import org.moeaframework.core.operator.UniformSelection;
 import org.moeaframework.core.operator.real.DifferentialEvolutionSelection;
 import org.moeaframework.core.operator.real.DifferentialEvolutionVariation;
 import org.moeaframework.core.operator.real.UM;
@@ -45,7 +43,6 @@ import org.moeaframework.util.Vector;
 import org.moeaframework.util.weights.RandomGenerator;
 
 import java.util.List;
-import java.util.Properties;
 
 /**
  * WARNING: this class is copied from MOEAFramework 2.13 and modified to provied injected initialization object
@@ -237,7 +234,7 @@ public class StandardAlgorithmsWithInjectedPopulation extends AlgorithmProvider 
     }
 
     @Override
-    public Algorithm getAlgorithm(String name, Properties properties,
+    public Algorithm getAlgorithm(String name, TypedProperties properties,
                                   Problem problem) {
         TypedProperties typedProperties = new TypedProperties(properties);
 

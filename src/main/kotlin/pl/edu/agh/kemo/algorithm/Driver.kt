@@ -1,14 +1,16 @@
 package pl.edu.agh.kemo.algorithm
 
 import org.moeaframework.algorithm.AbstractAlgorithm
+import org.moeaframework.algorithm.DefaultAlgorithms
 import org.moeaframework.algorithm.StandardAlgorithmsWithInjectedPopulation
 import org.moeaframework.core.Algorithm
 import org.moeaframework.core.NondominatedPopulation
 import org.moeaframework.core.Population
 import org.moeaframework.core.Problem
 import org.moeaframework.core.Solution
-import org.moeaframework.core.operator.InjectedInitialization
+import org.moeaframework.core.initialization.InjectedInitialization
 import org.moeaframework.core.spi.AlgorithmProvider
+import org.moeaframework.util.TypedProperties
 import pl.edu.agh.kemo.tools.trimMantissa
 import pl.edu.agh.kemo.tools.variables
 import java.io.NotSerializableException
@@ -22,12 +24,18 @@ interface DriverBuilder<A : AbstractAlgorithm> {
         problem: Problem, population: Population, mutationEta: Double, mutationRate: Double, crossoverEta: Double,
         crossoverRate: Double, mantissaBits: Int
     ): Driver<A> {
-        val properties = Properties().apply {
-            setProperty("populationSize", population.size().toString())
+        val properties = TypedProperties().apply {
+            setInt("populationSize", population.size())
         }
-        val algorithmProvider =
+        val algorithmProvider = object : DefaultAlgorithms() {
+            override fun getAlgorithm(name: String?, properties: TypedProperties?, problem: Problem?): Algorithm {
+                val algorithm = super.getAlgorithm(name, properties, problem)
+                algorithm.set
+                return algorithm
+            }
+        }
             StandardAlgorithmsWithInjectedPopulation(
-                InjectedInitialization(problem, population.size(), population.toList())
+                InjectedInitialization(problem, population.toList())
             )
         return create(
             problem,
@@ -48,7 +56,7 @@ interface DriverBuilder<A : AbstractAlgorithm> {
         mutationRate: Double,
         crossoverEta: Double,
         crossoverRate: Double,
-        properties: Properties,
+        properties: TypedProperties,
         mantissaBits: Int
     ): Driver<A>
 }

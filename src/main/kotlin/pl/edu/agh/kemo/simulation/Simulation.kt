@@ -5,7 +5,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import org.moeaframework.Executor
 import org.moeaframework.Instrumenter
-import org.moeaframework.analysis.collector.Accumulator
+import org.moeaframework.analysis.collector.Observations
 import org.moeaframework.core.Settings
 import org.moeaframework.core.spi.AlgorithmFactory
 import org.moeaframework.core.spi.ProblemFactory
@@ -83,7 +83,7 @@ abstract class Simulation(
         algorithmVariant: String,
         runNo: Int,
         algorithmTimes: MutableMap<String, Long>
-    ): Accumulator {
+    ): Observations {
         val instrumenter = Instrumenter()
             .withProblem(problemName)
             .also { configureInstrumenter(it) }
@@ -102,7 +102,7 @@ abstract class Simulation(
         }
 
         algorithmTimes[algorithmVariant] = (algorithmTimes[algorithmVariant] ?: 0) + runTime
-        return instrumenter.lastAccumulator
+        return instrumenter.observations
     }
 
     abstract fun configureInstrumenter(instrumenter: Instrumenter): Instrumenter

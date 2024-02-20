@@ -12,9 +12,10 @@ import kemo.driver.SPEA2DriverBuilder
 import org.moeaframework.core.Algorithm
 import org.moeaframework.core.Population
 import org.moeaframework.core.Problem
-import org.moeaframework.core.operator.RandomInitialization
+import org.moeaframework.core.initialization.RandomInitialization
 import org.moeaframework.core.spi.AlgorithmProvider
 import org.moeaframework.util.TypedProperties
+import java.io.StringWriter
 import java.util.Properties
 
 val MAX_EVALUATIONS_PROPERTY = "maxEvaluations"
@@ -45,8 +46,7 @@ class HGSProvider : AlgorithmProvider() {
         "MO-CMA-ES" to ::MOCMAESDriverBuilder
     )
 
-    override fun getAlgorithm(name: String, properties: Properties, problem: Problem): Algorithm? {
-        val typedProperties = TypedProperties(properties)
+    override fun getAlgorithm(name: String, typedProperties: TypedProperties, problem: Problem): Algorithm? {
         val numberOfVariables = problem.numberOfVariables
 
         if (name.isHGSName()) {
@@ -73,8 +73,8 @@ class HGSProvider : AlgorithmProvider() {
                 subPopulationSizes = listOf(64, 20, 10)
             )
             val populationSize = typedProperties.getDouble("populationSize", 100.0).toInt()
-            val population = RandomInitialization(problem, populationSize)
-                .run { initialize() }
+            val population = RandomInitialization(problem)
+                .run { initialize(populationSize) }
                 .let { Population(it) }
 
             return when {

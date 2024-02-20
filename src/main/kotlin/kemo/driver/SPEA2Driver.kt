@@ -5,6 +5,7 @@ import org.moeaframework.core.Population
 import org.moeaframework.core.Problem
 import org.moeaframework.core.Solution
 import org.moeaframework.core.spi.AlgorithmProvider
+import org.moeaframework.util.TypedProperties
 import pl.edu.agh.kemo.algorithm.Driver
 import pl.edu.agh.kemo.algorithm.DriverBuilder
 import java.util.Properties
@@ -19,14 +20,14 @@ class SPEA2DriverBuilder : DriverBuilder<SPEA2> {
         mutationRate: Double,
         crossoverEta: Double,
         crossoverRate: Double,
-        properties: Properties,
+        properties: TypedProperties,
         mantissaBits: Int
     ): Driver<SPEA2> {
         properties.apply {
-            setProperty("pm.distributionIndex", mutationEta.toString())
-            setProperty("pm.rate", mutationRate.toString())
-            setProperty("sbx.distributionIndex", crossoverEta.toString())
-            setProperty("sbx.rate", crossoverRate.toString())
+            setDouble("pm.distributionIndex", mutationEta)
+            setDouble("pm.rate", mutationRate)
+            setDouble("sbx.distributionIndex", crossoverEta)
+            setDouble("sbx.rate", crossoverRate)
         }
         return SPEA2Driver(algorithmProvider.getAlgorithm("SPEA2", properties, problem) as SPEA2, mantissaBits)
     }
@@ -35,7 +36,7 @@ class SPEA2DriverBuilder : DriverBuilder<SPEA2> {
 class SPEA2Driver(algorithm: SPEA2, mantissaBits: Int) : Driver<SPEA2>(algorithm, mantissaBits) {
 
     override fun nominateDelegates(): List<Solution> =
-        algorithm.archive.toList()
+        algorithm.population.toList()
 
     override fun getPopulation(): Population = algorithm.population
 }

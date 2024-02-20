@@ -30,7 +30,7 @@ tasks.withType<Test> {
 
 dependencies {
     implementation(kotlin("stdlib"))
-    implementation(group = "org.moeaframework", name = "moeaframework", version = "2.13")
+    implementation(group = "org.moeaframework", name = "moeaframework", version = "3.10")
     implementation(group = "org.slf4j", name="slf4j-api", version= "1.7.30")
     implementation(group = "org.slf4j", name="slf4j-log4j12", version= "1.7.30")
     implementation (group= "me.tongfei", name="progressbar", version="0.9.0")
