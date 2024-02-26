@@ -1,21 +1,15 @@
 package pl.edu.agh.kemo.algorithm
 
 import org.moeaframework.algorithm.AbstractAlgorithm
-import org.moeaframework.algorithm.DefaultAlgorithms
-import org.moeaframework.algorithm.StandardAlgorithmsWithInjectedPopulation
 import org.moeaframework.core.Algorithm
 import org.moeaframework.core.NondominatedPopulation
 import org.moeaframework.core.Population
 import org.moeaframework.core.Problem
 import org.moeaframework.core.Solution
-import org.moeaframework.core.initialization.InjectedInitialization
 import org.moeaframework.core.spi.AlgorithmProvider
 import org.moeaframework.util.TypedProperties
-import pl.edu.agh.kemo.tools.trimMantissa
-import pl.edu.agh.kemo.tools.variables
 import java.io.NotSerializableException
 import java.io.Serializable
-import java.util.Properties
 
 
 interface DriverBuilder<A : AbstractAlgorithm> {
@@ -27,16 +21,7 @@ interface DriverBuilder<A : AbstractAlgorithm> {
         val properties = TypedProperties().apply {
             setInt("populationSize", population.size())
         }
-        val algorithmProvider = object : DefaultAlgorithms() {
-            override fun getAlgorithm(name: String?, properties: TypedProperties?, problem: Problem?): Algorithm {
-                val algorithm = super.getAlgorithm(name, properties, problem)
-                algorithm.set
-                return algorithm
-            }
-        }
-            StandardAlgorithmsWithInjectedPopulation(
-                InjectedInitialization(problem, population.toList())
-            )
+        val algorithmProvider = AlgorithmsProvider(population)
         return create(
             problem,
             algorithmProvider,

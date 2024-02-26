@@ -67,8 +67,8 @@ class StatisticsGenerator(
                 val metricsMap = mutableMapOf<String, MutableList<Double>>()
                 for (accumulator in accumulatorsFromCSV) {
                     for (metric in metrics) {
-                        val value = accumulator.get(metric.fullName, accumulator.size(metric.fullName) - 1)
-                        metricsMap.getOrPut(metric.fullName, { mutableListOf() }).add(value as Double)
+                        val value = accumulator.last()[metric.fullName]
+                        metricsMap.getOrPut(metric.fullName) { mutableListOf() }.add(value as Double)
                     }
                 }
                 metricsMap.forEach { (metric, values) ->

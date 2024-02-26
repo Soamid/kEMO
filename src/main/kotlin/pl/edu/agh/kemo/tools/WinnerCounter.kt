@@ -1,7 +1,7 @@
 package pl.edu.agh.kemo.tools
 
 import org.moeaframework.AlgorithmStats
-import org.moeaframework.analysis.collector.Accumulator
+import org.moeaframework.analysis.collector.Observations
 import pl.edu.agh.kemo.simulation.QualityIndicator
 import pl.edu.agh.kemo.simulation.toQualityIndicator
 import kotlin.math.max
@@ -19,18 +19,18 @@ class WinnerCounter {
     val significantWinnersData = mutableMapOf<MetricEntry, MutableMap<String, WinningAlgorithm>>()
 
     fun update(
-        resultsAccumulator: Accumulator,
+        resultsAccumulator: Observations,
         algorithm: String,
         problem: String,
         finalEpochAlgorithmResults: Map<String, AlgorithmStats>
     ) {
-        resultsAccumulator.keySet()
+        resultsAccumulator.keys()
             .filter { isMetricValid(it) }
             .forEach { metric ->
-                val samplesCount = resultsAccumulator.size(metric)
+                val samplesCount = resultsAccumulator.size()
 
                 // we take last but one result in order to compare results not exceeding the budget
-                val metricValue = (resultsAccumulator[metric, samplesCount - 2] as Number).toDouble()
+                val metricValue = (resultsAccumulator.toList()[samplesCount - 2][metric] as Number).toDouble()
 
                 val metricEntry = MetricEntry(metric, 0)
                 val algorithmsMap = allWinnersData.getOrPut(metricEntry, { mutableMapOf() })

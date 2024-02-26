@@ -1,8 +1,8 @@
 package pl.edu.agh.kemo.simulation
 
-import org.moeaframework.analysis.collector.Accumulator
+import org.moeaframework.analysis.collector.Observations
 import org.moeaframework.analysis.plot.Plot
-import org.moeaframework.problem.StandardProblems
+import org.moeaframework.core.spi.ProblemFactory
 import pl.edu.agh.kemo.algorithm.HGSType
 import pl.edu.agh.kemo.tools.algorithmVariants
 import pl.edu.agh.kemo.tools.average
@@ -18,6 +18,8 @@ class PlotGenerator(
 
     val allAlgorithmVariants = algorithms.flatMap {  hgsTypes.algorithmVariants(it) }
 
+    private val problemFactory: ProblemFactory = ProblemFactory()
+
     fun saveAlgorithmPlots() {
         for (problem in problems) {
             for (algorithm in algorithms) {
@@ -30,7 +32,7 @@ class PlotGenerator(
     }
 
     private fun saveAlgorithmPlots(
-        averageAccumulators: Map<String, Accumulator>,
+        averageAccumulators: Map<String, Observations>,
         algorithmName: String,
         problemName: String
     ) {
@@ -58,7 +60,7 @@ class PlotGenerator(
     }
 
     private fun saveSummaryPlots(
-        algorithmsAccumulators: Map<String, Accumulator>,
+        algorithmsAccumulators: Map<String, Observations>,
         problemName: String
     ) {
         for (metric in metrics) {
@@ -74,7 +76,7 @@ class PlotGenerator(
 
     fun savePopulationPlots() {
         for(problemName in problems) {
-            val paretoFront = StandardProblems().getReferenceSet(problemName)
+            val paretoFront = problemFactory.getReferenceSet(problemName)
 
             val populations = loadPopulations(problemName, allAlgorithmVariants, runRange)
 

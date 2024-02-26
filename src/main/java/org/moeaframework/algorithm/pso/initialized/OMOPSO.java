@@ -1,4 +1,4 @@
-/* Copyright 2009-2019 David Hadka
+/* Copyright 2009-2024 David Hadka
  *
  * This file is part of the MOEA Framework.
  *
@@ -17,15 +17,17 @@
  */
 package org.moeaframework.algorithm.pso.initialized;
 
+import org.moeaframework.analysis.sensitivity.EpsilonHelper;
 import org.moeaframework.core.*;
 import org.moeaframework.core.comparator.CrowdingComparator;
 import org.moeaframework.core.comparator.ParetoDominanceComparator;
+import org.moeaframework.core.configuration.Property;
+import org.moeaframework.core.configuration.Validate;
 import org.moeaframework.core.fitness.CrowdingDistanceFitnessEvaluator;
 import org.moeaframework.core.fitness.FitnessBasedArchive;
+import org.moeaframework.core.operator.TypeSafeMutation;
 import org.moeaframework.core.variable.RealVariable;
-
-// NOTE: This implementation is derived from the original manuscripts and the
-// JMetal implementation.
+import org.moeaframework.util.TypedProperties;
 
 /**
  * Implementation of OMOPSO, a multi-objective particle swarm optimizer (MOPSO).
@@ -48,111 +50,194 @@ public class OMOPSO extends AbstractPSOAlgorithm {
     /**
      * The uniform mutation operator, whose parameters remain unchanged.
      */
-    private final Variation uniformMutation;
+    private final UniformMutation uniformMutation;
 
     /**
      * The non-uniform mutation operator, whose parameters change during a run.
      */
-    private final Variation nonUniformMutation;
+    private final NonUniformMutation nonUniformMutation;
+
+    /**
+     * Constructs a new OMOPSO instance with default settings.
+     *
+     * @param problem       the problem
+     * @param maxIterations the maximum number of iterations for scaling non-uniform mutation;
+     *                      typically this should be {@code maxEvaluations / swarmSize}
+     */
+    public OMOPSO(Problem problem, int maxIterations , Initialization initialization) {
+        this(problem,
+                Settings.DEFAULT_POPULATION_SIZE,
+                Settings.DEFAULT_POPULATION_SIZE,
+                new double[]{EpsilonHelper.getEpsilon(problem)},
+                1.0 / problem.getNumberOfVariables(),
+                0.5,
+                maxIterations, initialization);
+    }
 
     /**
      * Constructs a new OMOPSO instance.
      *
-     * @param problem the problem
-     * @param swarmSize the number of particles
-     * @param leaderSize the number of leaders
-     * @param epsilons the &epsilon;-values used in the external archive
-     * @param mutationProbability the mutation probability for uniform and
-     *        non-uniform mutation
-     * @param mutationPerturbation the perturbation index for uniform and
-     *        non-uniform mutation
-     * @param maxIterations the maximum iterations for scaling the non-uniform
-     *        mutation
+     * @param problem              the problem
+     * @param swarmSize            the number of particles
+     * @param leaderSize           the number of leaders
+     * @param epsilons             the &epsilon;-values used in the external archive
+     * @param mutationProbability  the mutation probability for uniform and non-uniform mutation
+     * @param mutationPerturbation the perturbation index for uniform and non-uniform mutation
+     * @param maxIterations        the maximum iterations for scaling the non-uniform mutation
      */
     public OMOPSO(Problem problem, int swarmSize, int leaderSize,
                   double[] epsilons, double mutationProbability,
-                  double mutationPerturbation, int maxIterations,
-                  Initialization initialization) {
-        super(problem, swarmSize, leaderSize, new CrowdingComparator(),
+                  double mutationPerturbation, int maxIterations, Initialization initialization) {
+        super(problem, swarmSize, leaderSize,
+                new CrowdingComparator(),
                 new ParetoDominanceComparator(),
                 new FitnessBasedArchive(new CrowdingDistanceFitnessEvaluator(), leaderSize),
                 new EpsilonBoxDominanceArchive(epsilons),
                 null, initialization);
-        this.uniformMutation = new UniformMutation(mutationProbability,
-                mutationPerturbation);
-        this.nonUniformMutation = new NonUniformMutation(mutationProbability,
-                mutationPerturbation, maxIterations);
+
+        this.uniformMutation = new UniformMutation(mutationProbability, mutationPerturbation);
+        this.nonUniformMutation = new NonUniformMutation(mutationProbability, mutationPerturbation, maxIterations);
+    }
+
+    /**
+     * Returns the mutation probability used by the uniform and non-uniform mutation operators.
+     *
+     * @return the mutation probability
+     */
+    public double getMutationProbability() {
+        return uniformMutation.getProbability();
+    }
+
+    /**
+     * Sets the mutation probability used by the uniform and non-uniform mutation operators.  The default
+     * value is {@code 1 / N}, where {@code N} is the number of decision variables.
+     *
+     * @param mutationProbability the mutation probability
+     */
+    @Property
+    public void setMutationProbability(double mutationProbability) {
+        Validate.probability("mutationProbability", mutationProbability);
+
+        uniformMutation.setProbability(mutationProbability);
+        nonUniformMutation.setProbability(mutationProbability);
+    }
+
+    /**
+     * Returns the perturbation index used by uniform and non-uniform mutation.
+     *
+     * @return the perturbation index
+     */
+    public double getPerturbationIndex() {
+        return uniformMutation.perturbationIndex;
+    }
+
+    /**
+     * Sets the perturbation index used by uniform and non-uniform mutation.  The default value
+     * is {@code 0.5}.
+     *
+     * @param perturbationIndex the perturbation index
+     */
+    @Property
+    public void setPerturbationIndex(double perturbationIndex) {
+        Validate.greaterThanZero("perturbationIndex", perturbationIndex);
+
+        uniformMutation.perturbationIndex = perturbationIndex;
+        nonUniformMutation.perturbationIndex = perturbationIndex;
+    }
+
+    @Override
+    protected EpsilonBoxDominanceArchive getArchive() {
+        return (EpsilonBoxDominanceArchive) super.getArchive();
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    protected void setArchive(EpsilonBoxDominanceArchive archive) {
+        super.setArchive(archive);
+    }
+
+    /**
+     * Sets the maximum number of iterations for scaling the non-uniform mutation.  Typically
+     * this should be set to {@code maxEvaluations / swarmSize}.
+     *
+     * @param maxIterations the maximum number of iterations
+     */
+    protected void setMaxIterations(int maxIterations) {
+        Validate.greaterThanZero("maxIterations", maxIterations);
+
+        nonUniformMutation.maxIterations = maxIterations;
     }
 
     @Override
     protected void mutate(int i) {
         if (i % 3 == 0) {
-            particles[i] = nonUniformMutation.evolve(new Solution[] {
-                    particles[i] })[0];
+            particles[i] = nonUniformMutation.mutate(particles[i]);
         } else if (i % 3 == 1) {
-            particles[i] = uniformMutation.evolve(new Solution[] {
-                    particles[i] })[0];
+            particles[i] = uniformMutation.mutate(particles[i]);
         }
+    }
+
+    @Override
+    public void applyConfiguration(TypedProperties properties) {
+        if (properties.contains("epsilon")) {
+            setArchive(new EpsilonBoxDominanceArchive(properties.getDoubleArray("epsilon")));
+        }
+
+        super.applyConfiguration(properties);
+    }
+
+    @Override
+    public TypedProperties getConfiguration() {
+        TypedProperties properties = super.getConfiguration();
+        properties.setDoubleArray("epsilon", getArchive().getComparator().getEpsilons().toArray());
+        return properties;
     }
 
     /**
      * The non-uniform mutation operator.
      */
-    private class NonUniformMutation implements Variation {
+    private class NonUniformMutation extends TypeSafeMutation<RealVariable> {
 
-        private final double probability;
+        private double perturbationIndex;
 
-        private final double perturbation;
+        private int maxIterations;
 
-        private final int maxIterations;
-
-        public NonUniformMutation(double probability, double perturbation,
-                                  int maxIterations) {
-            super();
-            this.probability = probability;
-            this.perturbation = perturbation;
+        public NonUniformMutation(double probability, double perturbationIndex, int maxIterations) {
+            super(RealVariable.class, probability);
+            this.perturbationIndex = perturbationIndex;
             this.maxIterations = maxIterations;
         }
 
         @Override
-        public int getArity() {
-            return 1;
+        public String getName() {
+            return "omopso.nonuniform";
         }
 
         @Override
-        public Solution[] evolve(Solution[] parents) {
-            Solution offspring = parents[0].copy();
+        public void mutate(RealVariable variable) {
+            double value = variable.getValue();
 
-            for (int i = 0; i < offspring.getNumberOfVariables(); i++) {
-                if (PRNG.nextDouble() < probability) {
-                    RealVariable variable = (RealVariable)offspring.getVariable(i);
-                    double value = variable.getValue();
-
-                    if (PRNG.nextBoolean()) {
-                        value += getDelta(variable.getUpperBound() - value);
-                    } else {
-                        value += getDelta(variable.getLowerBound() - value);
-                    }
-
-                    if (value < variable.getLowerBound()) {
-                        value = variable.getLowerBound();
-                    } else if (value > variable.getUpperBound()) {
-                        value = variable.getUpperBound();
-                    }
-
-                    variable.setValue(value);
-                }
+            if (PRNG.nextBoolean()) {
+                value += getDelta(variable.getUpperBound() - value);
+            } else {
+                value += getDelta(variable.getLowerBound() - value);
             }
 
-            return new Solution[] { offspring };
+            if (value < variable.getLowerBound()) {
+                value = variable.getLowerBound();
+            } else if (value > variable.getUpperBound()) {
+                value = variable.getUpperBound();
+            }
+
+            variable.setValue(value);
         }
 
         public double getDelta(double difference) {
-            int currentIteration = getNumberOfEvaluations() / swarmSize;
-            double fraction = currentIteration / (double)maxIterations;
+            int currentIteration = getNumberOfEvaluations() / getSwarmSize();
+            double fraction = currentIteration / (double) maxIterations;
 
-            return difference * (1.0 - Math.pow(PRNG.nextDouble(),
-                    Math.pow(1.0 - fraction, perturbation)));
+            return difference * (1.0 - Math.pow(PRNG.nextDouble(), Math.pow(1.0 - fraction, perturbationIndex)));
         }
 
     }
@@ -160,45 +245,33 @@ public class OMOPSO extends AbstractPSOAlgorithm {
     /**
      * The uniform mutation operator.
      */
-    private class UniformMutation implements Variation {
+    private class UniformMutation extends TypeSafeMutation<RealVariable> {
 
-        private final double probability;
+        private double perturbationIndex;
 
-        private final double perturbation;
-
-        public UniformMutation(double probability, double perturbation) {
-            super();
-            this.probability = probability;
-            this.perturbation = perturbation;
+        public UniformMutation(double probability, double perturbationIndex) {
+            super(RealVariable.class, probability);
+            this.perturbationIndex = perturbationIndex;
         }
 
         @Override
-        public int getArity() {
-            return 1;
+        public String getName() {
+            return "omopso.uniform";
         }
 
         @Override
-        public Solution[] evolve(Solution[] parents) {
-            Solution offspring = parents[0].copy();
+        public void mutate(RealVariable variable) {
+            double value = variable.getValue();
 
-            for (int i = 0; i < offspring.getNumberOfVariables(); i++) {
-                if (PRNG.nextDouble() < probability) {
-                    RealVariable variable = (RealVariable)offspring.getVariable(i);
-                    double value = variable.getValue();
+            value += (PRNG.nextDouble() - 0.5) * perturbationIndex;
 
-                    value += (PRNG.nextDouble() - 0.5) * perturbation;
-
-                    if (value < variable.getLowerBound()) {
-                        value = variable.getLowerBound();
-                    } else if (value > variable.getUpperBound()) {
-                        value = variable.getUpperBound();
-                    }
-
-                    variable.setValue(value);
-                }
+            if (value < variable.getLowerBound()) {
+                value = variable.getLowerBound();
+            } else if (value > variable.getUpperBound()) {
+                value = variable.getUpperBound();
             }
 
-            return new Solution[] { offspring };
+            variable.setValue(value);
         }
 
     }

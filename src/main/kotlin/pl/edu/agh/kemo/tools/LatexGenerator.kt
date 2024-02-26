@@ -46,7 +46,7 @@ fun printMetricsComparisonTable(
 
         val indicatorResults = algorithmVariants.associateWith { algorithmVariant ->
             accumulatorsFromCSV(problem, algorithmVariant, runRange)
-                .map { it[metric.fullName, it.size(metric.fullName) - 1] as Double }
+                .map { it.last()[metric.fullName] as Double }
                 .let { IndicatorResult(metric.fullName, it.toDoubleArray()) }
                 .let { indicatorResult -> AlgorithmStats(algorithmVariant).apply { add(indicatorResult) } }
         }

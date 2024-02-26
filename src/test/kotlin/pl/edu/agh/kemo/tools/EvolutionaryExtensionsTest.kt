@@ -5,14 +5,12 @@ import io.kotest.core.spec.style.StringSpec
 import io.kotest.inspectors.forAll
 import io.kotest.matchers.collections.shouldContainAll
 import io.kotest.matchers.collections.shouldHaveSize
-import io.kotest.matchers.doubles.plusOrMinus
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.shouldNotBe
-import org.moeaframework.analysis.collector.Accumulator
+import org.moeaframework.analysis.collector.Observations
 import org.moeaframework.core.Population
 import org.moeaframework.core.Solution
 import org.moeaframework.core.variable.RealVariable
-import java.lang.IndexOutOfBoundsException
 
 class EvolutionaryExtensionsTest : StringSpec({
 
@@ -109,25 +107,19 @@ class EvolutionaryExtensionsTest : StringSpec({
         val meanAccumulator = accumulators.average()
 
         // then
-        meanAccumulator.size("Hypervolume") shouldBe 3
-        meanAccumulator["Hypervolume", 0] shouldBe 2.5
-        meanAccumulator["Hypervolume", 1] shouldBe 3.5
-        meanAccumulator["Hypervolume", 2] shouldBe 4.5
+        meanAccumulator.size() shouldBe 3
+        meanAccumulator.at(1000)["Hypervolume"] shouldBe 2.5
+        meanAccumulator.at(2000)["Hypervolume"] shouldBe 3.5
+        meanAccumulator.at(3000)["Hypervolume"] shouldBe 4.5
 
-        meanAccumulator.size("IGD") shouldBe 3
-        meanAccumulator["IGD", 0] shouldBe 5.5
-        meanAccumulator["IGD", 1] shouldBe 6.5
-        meanAccumulator["IGD", 2] shouldBe 8
-
-        meanAccumulator.size("NFE") shouldBe 3
-        meanAccumulator["NFE", 0] shouldBe 1000.0
-        meanAccumulator["NFE", 1] shouldBe 2000.0
-        meanAccumulator["NFE", 2] shouldBe 3000.0
+        meanAccumulator.at(1000)["IGD"] shouldBe 5.5
+        meanAccumulator.at(2000)["IGD"] shouldBe 6.5
+        meanAccumulator.at(3000)["IGD"] shouldBe 8
     }
 })
 
-fun createAccumulator(resultsData: Map<String, List<Double>>): Accumulator {
-    val accumulator = Accumulator()
+fun createAccumulator(resultsData: Map<String, List<Double>>): Observations {
+    val accumulator = Observations()
     resultsData.keys.forEach { metric ->
         resultsData[metric]?.forEach { accumulator.add(metric, it) }
     }

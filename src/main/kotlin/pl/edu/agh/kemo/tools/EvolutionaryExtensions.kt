@@ -1,9 +1,10 @@
 package pl.edu.agh.kemo.tools
 
-import org.apache.commons.lang3.StringEscapeUtils
 import org.apache.commons.math3.linear.MatrixUtils
 import org.apache.commons.math3.linear.RealMatrix
-import org.moeaframework.analysis.collector.Accumulator
+import org.apache.commons.text.StringEscapeUtils
+import org.moeaframework.analysis.collector.Observation
+import org.moeaframework.analysis.collector.Observations
 import org.moeaframework.core.Population
 import org.moeaframework.core.Settings
 import org.moeaframework.core.Solution
@@ -33,7 +34,7 @@ fun Population.average(): List<RealVariable>? {
                 val upperBound = representant.upperBound
                 val averageValue = solutionsVariables.map { variables -> variables[solutionIndex].value }
                     .average()
-                    .let {  minOf(maxOf(it, lowerBound), upperBound) }
+                    .let { minOf(maxOf(it, lowerBound), upperBound) }
                 RealVariable(averageValue, lowerBound, upperBound)
             }
     }
@@ -60,22 +61,23 @@ fun List<Node>.countAlive(): Int {
 }
 
 
-fun List<Accumulator>.average(): Accumulator {
-    val meanAccumulator = Accumulator()
+fun List<Observations>.average(): Observations {
+    val meanAccumulator = Observations()
     if (!isEmpty()) {
         val sampleAccumulator = get(0)
-        val metrics = sampleAccumulator.keySet()
 
-        metrics.asSequence()
+        val nfeSteps = sampleAccumulator.map { it.nfe }.sorted()
+
+        sampleAccumulator.keys().asSequence()
             .forEach { metric ->
                 val results =
                     map { accumulator ->
-                        val samplesCount = if (metric in accumulator.keySet()) accumulator.size(metric) else 0
-                        (0 until samplesCount).map { accumulator[metric, it] as Number }
+                        accumulator.map { it[metric] as Number }
                     }
-                val minSamplesCount = results.map { it.size }.minOrNull()
+                val minSamplesCount = results.minOfOrNull { it.size }
 
-                val runResults = (0 until minSamplesCount!!).map { runNo ->
+                val runResults = (0 until minSamplesCount!!)
+                    .map { runNo ->
                     val singleSampleResults = results.asSequence()
                         .filter { it.size > runNo }
                         .map { it[runNo].toDouble() }
@@ -86,11 +88,19 @@ fun List<Accumulator>.average(): Accumulator {
                         }
                     }
                 }
-                runResults.forEach { meanAccumulator.add(metric, it.average)
-                meanAccumulator.add("${metric}_error", it.error)}
+                runResults.forEach {
+                    meanAccumulator.add(metric, it.average)
+                    meanAccumulator.add("${metric}_error", it.error)
+                }
             }
     }
     return meanAccumulator
+}
+
+fun Observations.add(metric: String?, value: Double, nfe : Int = 0) {
+    val observation = Observation(nfe)
+    observation[metric] = value
+    add(observation)
 }
 
 data class Result(val average: Double, val error: Double)
@@ -103,26 +113,20 @@ fun Sequence<Double>.standardDev(): Double {
         }
 }
 
-fun Accumulator.minSize(): Int =
-    keySet().asSequence()
-        .map { size(it) }
-        .min()
-        ?: 0
-
 /**
  * Implementation copied from Accumulator#toCSV() method with separator " ," replaced with ","
  */
-fun Accumulator.toTrimmedCSV(): String {
+fun Observations.toTrimmedCSV(): String {
     val sb = StringBuilder()
     var firstValue = true
 
     // determine the ordering of the fields
     val fields: MutableSet<String> = LinkedHashSet()
     fields.add("NFE")
-    if ("Elapsed Time" in keySet()) {
+    if ("Elapsed Time" in keys()) {
         fields.add("Elapsed Time")
     }
-    fields.addAll(keySet())
+    fields.addAll(keys())
 
     // create the header
     for (field in fields) {
@@ -134,14 +138,14 @@ fun Accumulator.toTrimmedCSV(): String {
     }
 
     // create the data
-    for (i in 0 until size("NFE")) {
+    for (nfe in map { it.nfe }) {
         sb.append(Settings.NEW_LINE)
         firstValue = true
         for (field in fields) {
             if (!firstValue) {
                 sb.append(",")
             }
-            sb.append(StringEscapeUtils.escapeCsv(get(field, i).toString()))
+            sb.append(StringEscapeUtils.escapeCsv(at(nfe)[field].toString()))
             firstValue = false
         }
     }

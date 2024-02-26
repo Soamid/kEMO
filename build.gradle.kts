@@ -38,11 +38,14 @@ dependencies {
     implementation("com.github.doyaaaaaken:kotlin-csv-jvm:0.15.0")
     // https://mvnrepository.com/artifact/me.tongfei/progressbar
 
+    implementation("org.apache.commons:commons-text:1.11.0")
+
+
 
     api(group="space.kscience", name="kmath-core", version = "0.2.0")
-    implementation("io.kotest:kotest-runner-console-jvm:4.1.3")
+//    implementation("io.kotest:kotest-runner-console-jvm:4.2.0")
 
-    testImplementation("io.kotest:kotest-runner-junit5-jvm:4.1.3") // for kotest framework
-    testImplementation("io.kotest:kotest-assertions-core-jvm:4.1.3>") // for kotest core jvm assertions
-    testImplementation("io.kotest:kotest-property-jvm:4.1.3") // for kotest property test
+    testImplementation("io.kotest:kotest-runner-junit5-jvm:4.2.0") // for kotest framework
+    testImplementation("io.kotest:kotest-assertions-core-jvm:4.2.0>") // for kotest core jvm assertions
+    testImplementation("io.kotest:kotest-property-jvm:4.2.0") // for kotest property test
 }

@@ -1,17 +1,18 @@
 package pl.edu.agh.kemo.simulation
 
 import com.github.doyaaaaaken.kotlincsv.dsl.csvReader
-import org.moeaframework.analysis.collector.Accumulator
+import org.moeaframework.analysis.collector.Observations
 import org.moeaframework.core.NondominatedPopulation
 import org.moeaframework.core.Population
 import org.moeaframework.core.PopulationIO
+import pl.edu.agh.kemo.tools.add
 import pl.edu.agh.kemo.tools.toTrimmedCSV
 import java.io.File
 
-const val RESULTS_PATH = "results_global_archive"
+const val RESULTS_PATH = "results_test"
 
 fun saveMetrics(
-    resultAccumulators: Map<String, MutableList<Accumulator>>,
+    resultAccumulators: Map<String, MutableList<Observations>>,
     problemName: String,
     startRunNo: Int
 ) {
@@ -24,7 +25,7 @@ fun saveMetrics(
         }
 }
 
-fun Accumulator.saveCSV(algorithm: String, problemName: String, runNo: Int) {
+fun Observations.saveCSV(algorithm: String, problemName: String, runNo: Int) {
     metricsPath(algorithm, problemName, runNo).toExistingFile()
         .writeText(toTrimmedCSV())
 }
@@ -58,15 +59,19 @@ fun accumulatorsFromCSV(
     problemName: String,
     algorithmName: String,
     runRange: IntRange
-): List<Accumulator> {
+): List<Observations> {
     return runRange.map { runNo -> metricsPath(algorithmName, problemName, runNo) }
         .map { csvReader().readAllWithHeader(File(it)) }
         .map { rows ->
-            Accumulator().apply {
-                rows.flatMap { it.entries }
-                    .forEach { (metric, value) -> add(metric.trim(), value.toDouble()) }
+            Observations().apply {
+                rows.flatMap {
+                    val nfe = it["nfe"]?.toInt() ?: throw IllegalStateException("No NFE found in data.")
+                    it.map { cell -> MetricCell(nfe, cell.key, cell.value.toDouble()) }
+                }.forEach { (nfe, metric, value) -> add(metric.trim(), value, nfe) }
             }
         }
 }
+
+data class MetricCell(val nfe: Int, val metric: String, val value: Double)
 
 

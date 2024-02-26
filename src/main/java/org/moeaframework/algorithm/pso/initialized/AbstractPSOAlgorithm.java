@@ -1,4 +1,4 @@
-/* Copyright 2009-2019 David Hadka
+/* Copyright 2009-2024 David Hadka
  *
  * This file is part of the MOEA Framework.
  *
@@ -18,42 +18,36 @@
 package org.moeaframework.algorithm.pso.initialized;
 
 import org.moeaframework.algorithm.AbstractAlgorithm;
-import org.moeaframework.algorithm.AlgorithmInitializationException;
 import org.moeaframework.core.*;
 import org.moeaframework.core.comparator.DominanceComparator;
+import org.moeaframework.core.configuration.Configurable;
+import org.moeaframework.core.configuration.Property;
+import org.moeaframework.core.configuration.Validate;
 import org.moeaframework.core.fitness.FitnessBasedArchive;
+import org.moeaframework.core.operator.Mutation;
 import org.moeaframework.core.variable.EncodingUtils;
 import org.moeaframework.core.variable.RealVariable;
-import org.moeaframework.util.SolutionUtils;
 
-import java.io.NotSerializableException;
-import java.io.Serializable;
+import java.io.IOException;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
+import java.util.ArrayList;
 import java.util.List;
 
 /**
  * Abstract multi-objective particle swarm optimizer (MOPSO).
  */
-public abstract class AbstractPSOAlgorithm extends AbstractAlgorithm {
-
-    /**
-     * The original implementation of OMOPSO in JMetal returns the leaders
-     * instead of the epsilon-dominance archive as described in the literature.
-     * This results in a small performance difference that is detected by our
-     * unit tests.  To enable unit testing to compare the two implementations,
-     * this flag forces OMOPSO to behave like the JMetal implementation and
-     * only return the leaders.
-     */
-    static boolean TESTING_MODE = false;
+public abstract class AbstractPSOAlgorithm extends AbstractAlgorithm implements Configurable {
 
     /**
      * The number of particles.
      */
-    protected int swarmSize;
+    private int swarmSize;
 
     /**
      * The number of leaders.
      */
-    protected int leaderSize;
+    private int leaderSize;
 
     /**
      * The particles.
@@ -90,13 +84,13 @@ public abstract class AbstractPSOAlgorithm extends AbstractAlgorithm {
      * Comparator for updating the local best particles.
      */
     protected DominanceComparator dominanceComparator;
+    
+    protected Initialization initialization;
 
     /**
      * Mutation operator, or {@code null} if no mutation is defined.
      */
-    protected Variation mutation;
-
-    protected Initialization initialization;
+    protected Mutation mutation;
 
     /**
      * Constructs a new abstract PSO algorithm.
@@ -105,34 +99,107 @@ public abstract class AbstractPSOAlgorithm extends AbstractAlgorithm {
      * @param swarmSize the number of particles
      * @param leaderSize the number of leaders
      * @param leaderComparator comparator for selecting leaders
-     * @param dominanceComparator comparator for updating the local best
-     *        particles
+     * @param dominanceComparator comparator for updating the local best particles
      * @param leaders non-dominated population for storing the leaders
      * @param archive non-dominated population for storing the external archive;
      *        or {@code null} if no external archive is defined
-     * @param mutation mutation operator, or {@code null} if no mutation is
-     *        defined
+     * @param mutation mutation operator, or {@code null} if no mutation is defined
      */
     public AbstractPSOAlgorithm(Problem problem, int swarmSize, int leaderSize,
                                 DominanceComparator leaderComparator,
                                 DominanceComparator dominanceComparator,
                                 FitnessBasedArchive leaders,
                                 NondominatedPopulation archive,
-                                Variation mutation,
+                                Mutation mutation,
                                 Initialization initialization) {
         super(problem);
-        this.swarmSize = swarmSize;
-        this.leaderSize = leaderSize;
+        setSwarmSize(swarmSize);
+        setLeaderSize(leaderSize);
+
+        Validate.problemType(problem, RealVariable.class);
+        Validate.notNull("leaderComparer", leaderComparator);
+        Validate.notNull("dominanceComparator", dominanceComparator);
+        Validate.notNull("leaders", leaders);
+
         this.leaderComparator = leaderComparator;
         this.dominanceComparator = dominanceComparator;
         this.leaders = leaders;
         this.archive = archive;
         this.mutation = mutation;
         this.initialization = initialization;
+    }
 
-        particles = new Solution[swarmSize];
-        localBestParticles =  new Solution[swarmSize];
-        velocities = new double[swarmSize][problem.getNumberOfVariables()];
+    /**
+     * Returns the number of particles (aka swarm size or population size).
+     *
+     * @return the swarm size
+     */
+    public int getSwarmSize() {
+        return swarmSize;
+    }
+
+    /**
+     * Sets the number of particles (aka swarm size or population size).  This value can only be set before
+     * initialization.
+     *
+     * @param swarmSize the swarm size
+     */
+    @Property(alias="populationSize")
+    public void setSwarmSize(int swarmSize) {
+        assertNotInitialized();
+        Validate.greaterThanZero("swarmSize", swarmSize);
+        this.swarmSize = swarmSize;
+    }
+
+    /**
+     * Returns the number of leaders, which tracks the best particles according to some fitness criteria.
+     *
+     * @return the leader size
+     */
+    public int getLeaderSize() {
+        return leaderSize;
+    }
+
+    /**
+     * Sets the number of leaders, which tracks the best particles according to some fitness criteria.  This value
+     * can only be set before initialization.
+     *
+     * @param leaderSize the leader size
+     */
+    @Property(alias="archiveSize")
+    public void setLeaderSize(int leaderSize) {
+        assertNotInitialized();
+        Validate.greaterThanZero("leaderSize", leaderSize);
+        this.leaderSize = leaderSize;
+    }
+
+    /**
+     * Returns the mutation operator, or {@code null} if no mutation is defined.
+     *
+     * @return the mutation operator or {@code null}
+     */
+    public Mutation getMutation() {
+        return mutation;
+    }
+
+    /**
+     * Returns the archive of non-dominated solutions; or {@code null} of no external archive is used.
+     *
+     * @return the archive or {@code null}
+     */
+    protected NondominatedPopulation getArchive() {
+        return archive;
+    }
+
+    /**
+     * Sets the archive of non-dominated solutions; or {@code null} of no external archive is used.  This value
+     * can only be set before initialization.
+     *
+     * @param archive the archive or {@code null}.
+     */
+    protected void setArchive(NondominatedPopulation archive) {
+        assertNotInitialized();
+        this.archive = archive;
     }
 
     /**
@@ -233,8 +300,7 @@ public abstract class AbstractPSOAlgorithm extends AbstractAlgorithm {
      */
     protected void updateLocalBest() {
         for (int i = 0; i < swarmSize; i++) {
-            int flag = dominanceComparator.compare(particles[i],
-                    localBestParticles[i]);
+            int flag = dominanceComparator.compare(particles[i], localBestParticles[i]);
 
             if (flag <= 0) {
                 localBestParticles[i] = particles[i];
@@ -258,13 +324,13 @@ public abstract class AbstractPSOAlgorithm extends AbstractAlgorithm {
      */
     protected void mutate(int i) {
         if (mutation != null) {
-            particles[i] = mutation.evolve(new Solution[] { particles[i] })[0];
+            particles[i] = mutation.mutate(particles[i]);
         }
     }
 
     @Override
     public NondominatedPopulation getResult() {
-        if (archive == null || TESTING_MODE) {
+        if (archive == null) {
             return new NondominatedPopulation(leaders);
         } else {
             return new NondominatedPopulation(archive);
@@ -275,9 +341,12 @@ public abstract class AbstractPSOAlgorithm extends AbstractAlgorithm {
     protected void initialize() {
         super.initialize();
 
-        Solution[] initialParticles = initialization.initialize();
-
+        Solution[] initialParticles = initialization.initialize(swarmSize);
         evaluateAll(initialParticles);
+
+        particles = new Solution[swarmSize];
+        localBestParticles = new Solution[swarmSize];
+        velocities = new double[swarmSize][problem.getNumberOfVariables()];
 
         for (int i = 0; i < swarmSize; i++) {
             particles[i] = initialParticles[i];
@@ -309,192 +378,73 @@ public abstract class AbstractPSOAlgorithm extends AbstractAlgorithm {
         }
     }
 
+    /**
+     * Returns the current particles.
+     *
+     * @return the current particles
+     */
     public List<Solution> getParticles() {
-        return SolutionUtils.copyToList(particles);
+        return copyToList(particles);
     }
 
+    /**
+     * Returns the local best particles.
+     *
+     * @return the local best particles
+     */
     public List<Solution> getLocalBestParticles() {
-        return SolutionUtils.copyToList(localBestParticles);
+        return copyToList(localBestParticles);
     }
 
+    /**
+     * Returns the current leaders.
+     *
+     * @return the current leaders
+     */
     public List<Solution> getLeaders() {
-        return SolutionUtils.copyToList(leaders);
+        return leaders.asList(true);
     }
 
     @Override
-    public Serializable getState() throws NotSerializableException {
-        if (!isInitialized()) {
-            throw new AlgorithmInitializationException(this,
-                    "algorithm not initialized");
-        }
-
-        List<Solution> particlesList = SolutionUtils.toList(particles);
-        List<Solution> localBestParticlesList = SolutionUtils.toList(localBestParticles);
-        List<Solution> leadersList = SolutionUtils.toList(leaders);
-        List<Solution> archiveList = archive == null ? null : SolutionUtils.toList(archive);
-        double[][] velocitiesClone = new double[velocities.length][];
-
-        for (int i = 0; i < velocities.length; i++) {
-            velocitiesClone[i] = velocities[i].clone();
-        }
-
-        return new PSOAlgorithmState(getNumberOfEvaluations(),
-                particlesList, localBestParticlesList, leadersList,
-                archiveList, velocitiesClone);
-    }
-
-    @Override
-    public void setState(Object objState) throws NotSerializableException {
-        super.initialize();
-
-        PSOAlgorithmState state = (PSOAlgorithmState)objState;
-
-        numberOfEvaluations = state.getNumberOfEvaluations();
-
-        if (state.getParticles().size() != swarmSize) {
-            throw new NotSerializableException(
-                    "swarmSize does not match serialized state");
-        }
-
-        for (int i = 0; i < swarmSize; i++) {
-            particles[i] = state.getParticles().get(i);
-        }
-
-        for (int i = 0; i < swarmSize; i++) {
-            localBestParticles[i] = state.getLocalBestParticles().get(i);
-        }
-
-        leaders.addAll(state.getLeaders());
-        leaders.update();
+    public void saveState(ObjectOutputStream stream) throws IOException {
+        super.saveState(stream);
+        stream.writeObject(particles);
+        stream.writeObject(localBestParticles);
+        stream.writeObject(velocities);
+        leaders.saveState(stream);
 
         if (archive != null) {
-            archive.addAll(state.getArchive());
+            archive.saveState(stream);
         }
+    }
 
-        for (int i = 0; i < swarmSize; i++) {
-            for (int j = 0; j < problem.getNumberOfVariables(); j++) {
-                velocities[i][j] = state.getVelocities()[i][j];
-            }
+    @Override
+    public void loadState(ObjectInputStream stream) throws IOException, ClassNotFoundException {
+        super.loadState(stream);
+        particles = (Solution[])stream.readObject();
+        localBestParticles = (Solution[])stream.readObject();
+        velocities = (double[][])stream.readObject();
+        leaders.loadState(stream);
+
+        if (archive != null) {
+            archive.loadState(stream);
         }
     }
 
     /**
-     * Proxy for serializing and deserializing the state of an
-     * {@code AbstractPSOAlgorithm}. This proxy supports saving
-     * the {@code numberOfEvaluations}, {@code population} and {@code archive}.
+     * Converts an array of solutions to a list of solutions, creating copies of each solution.
+     *
+     * @param solutions the array of solutions
+     * @return the list of copied solutions
      */
-    private static class PSOAlgorithmState implements Serializable {
+    protected static List<Solution> copyToList(Solution[] solutions) {
+        List<Solution> result = new ArrayList<Solution>(solutions.length);
 
-        private static final long serialVersionUID = -1895823731827106938L;
-
-        /**
-         * The number of objective function evaluations.
-         */
-        private final int numberOfEvaluations;
-
-        /**
-         * The particles stored in a serializable list.
-         */
-        private final List<Solution> particles;
-
-        /**
-         * The local best particles stored in a serializable list.
-         */
-        private final List<Solution> localBestParticles;
-
-        /**
-         * The leaders stored in a serializable list.
-         */
-        private final List<Solution> leaders;
-
-        /**
-         * The archive stored in a serializable list.
-         */
-        private final List<Solution> archive;
-
-        /**
-         * The velocities.
-         */
-        private final double[][] velocities;
-
-        /**
-         * Constructs a proxy to serialize and deserialize the state of an
-         * {@code AbstractPSOAlgorithm}.
-         *
-         * @param numberOfEvaluations the number of objective function
-         *        evaluations
-         * @param population the population stored in a serializable list
-         * @param archive the archive stored in a serializable list
-         */
-        public PSOAlgorithmState(int numberOfEvaluations,
-                                 List<Solution> particles,
-                                 List<Solution> localBestParticles,
-                                 List<Solution> leaders,
-                                 List<Solution> archive,
-                                 double[][] velocities) {
-            super();
-            this.numberOfEvaluations = numberOfEvaluations;
-            this.particles = particles;
-            this.localBestParticles = localBestParticles;
-            this.leaders = leaders;
-            this.archive = archive;
-            this.velocities = velocities;
+        for (Solution solution : solutions) {
+            result.add(solution.copy());
         }
 
-        /**
-         * Returns the number of objective function evaluations.
-         *
-         * @return the number of objective function evaluations
-         */
-        public int getNumberOfEvaluations() {
-            return numberOfEvaluations;
-        }
-
-        /**
-         * Returns the particles stored in a serializable list.
-         *
-         * @return the particles stored in a serializable list
-         */
-        public List<Solution> getParticles() {
-            return particles;
-        }
-
-        /**
-         * Returns the local best particles stored in a serializable list.
-         *
-         * @return the local best particles stored in a serializable list
-         */
-        public List<Solution> getLocalBestParticles() {
-            return localBestParticles;
-        }
-
-        /**
-         * Returns the leaders stored in a serializable list.
-         *
-         * @return the leaders stored in a serializable list
-         */
-        public List<Solution> getLeaders() {
-            return leaders;
-        }
-
-        /**
-         * Returns the velocities.
-         *
-         * @return the velocities
-         */
-        public double[][] getVelocities() {
-            return velocities;
-        }
-
-        /**
-         * Returns the archive stored in a serializable list.
-         *
-         * @return the archive stored in a serializable list
-         */
-        public List<Solution> getArchive() {
-            return archive;
-        }
-
+        return result;
     }
 
 }
