@@ -66,39 +66,43 @@ fun List<Observations>.average(): Observations {
     if (!isEmpty()) {
         val sampleAccumulator = get(0)
 
-        val nfeSteps = sampleAccumulator.map { it.nfe }.sorted()
-
-        sampleAccumulator.keys().asSequence()
-            .forEach { metric ->
-                val results =
-                    map { accumulator ->
-                        accumulator.map { it[metric] as Number }
-                    }
-                val minSamplesCount = results.minOfOrNull { it.size }
-
-                val runResults = (0 until minSamplesCount!!)
-                    .map { runNo ->
-                    val singleSampleResults = results.asSequence()
-                        .filter { it.size > runNo }
-                        .map { it[runNo].toDouble() }
-                    when (metric) {
-                        "NFE" -> Result(singleSampleResults.maxOrNull() ?: 0.0, 0.0)
-                        else -> {
-                            Result(singleSampleResults.average(), singleSampleResults.standardDev())
-                        }
-                    }
-                }
-                runResults.forEach {
-                    meanAccumulator.add(metric, it.average)
-                    meanAccumulator.add("${metric}_error", it.error)
-                }
+        val nfeSteps =
+            map { accumulator ->
+                accumulator.map { it.nfe }
             }
+        val minSamplesCount = nfeSteps.minOfOrNull { it.size }
+
+        val maxNfeSteps = (0 until minSamplesCount!!)
+            .map { runNo ->
+                val singleSampleResults = nfeSteps.asSequence()
+                    .filter { it.size > runNo }
+                    .map { it[runNo] }
+                singleSampleResults.minOrNull() ?: 0
+            }
+
+        (0 until maxNfeSteps.size).forEach { nfeIndex ->
+            sampleAccumulator.keys().asSequence()
+                .forEach { metric ->
+                    val results = asSequence()
+                        .map { accumulator ->
+                            accumulator.toList()[nfeIndex]
+                                .let { it[metric] as Double }
+                        }
+                    val nfe = maxNfeSteps[nfeIndex]
+                    meanAccumulator.add(metric, results.average(), nfe)
+                    meanAccumulator.add(
+                        "${metric}_error",
+                        results.standardDev(),
+                        nfe
+                    )
+                }
+        }
     }
     return meanAccumulator
 }
 
-fun Observations.add(metric: String?, value: Double, nfe : Int = 0) {
-    val observation = Observation(nfe)
+fun Observations.add(metric: String?, value: Double, nfe: Int = 0) {
+    val observation = at(nfe) ?: Observation(nfe)
     observation[metric] = value
     add(observation)
 }
@@ -145,7 +149,11 @@ fun Observations.toTrimmedCSV(): String {
             if (!firstValue) {
                 sb.append(",")
             }
-            sb.append(StringEscapeUtils.escapeCsv(at(nfe)[field].toString()))
+            if (field == "NFE") {
+                sb.append(nfe)
+            } else {
+                sb.append(StringEscapeUtils.escapeCsv(at(nfe)[field].toString()))
+            }
             firstValue = false
         }
     }

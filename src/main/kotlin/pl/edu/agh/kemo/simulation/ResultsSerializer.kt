@@ -65,7 +65,7 @@ fun accumulatorsFromCSV(
         .map { rows ->
             Observations().apply {
                 rows.flatMap {
-                    val nfe = it["nfe"]?.toInt() ?: throw IllegalStateException("No NFE found in data.")
+                    val nfe = it["NFE"]?.toInt() ?: throw IllegalStateException("No NFE found in data.")
                     it.map { cell -> MetricCell(nfe, cell.key, cell.value.toDouble()) }
                 }.forEach { (nfe, metric, value) -> add(metric.trim(), value, nfe) }
             }

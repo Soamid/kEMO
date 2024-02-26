@@ -87,18 +87,18 @@ class EvolutionaryExtensionsTest : StringSpec({
         val accumulator1 =
             createAccumulator(
                 mapOf(
-                    "Hypervolume" to listOf(1.0, 2.0, 3.0, 4.0),
+                    "Hypervolume" to listOf(1.0, 2.0, 3.0),
                     "IGD" to listOf(4.0, 5.0, 6.0),
-                    "NFE" to listOf(1001.0, 2000.0, 3002.0)
-                )
+                ),
+                nfeSequence = listOf(1001, 2000, 3002)
             )
         val accumulator2 =
             createAccumulator(
                 mapOf(
                     "Hypervolume" to listOf(4.0, 5.0, 6.0),
-                    "IGD" to listOf(7.0, 8.0, 10.0),
-                    "NFE" to listOf(1000.0, 2005.0, 3000.0)
-                )
+                    "IGD" to listOf(7.0, 8.0, 10.0)
+                ),
+                nfeSequence = listOf(1000, 2005, 3000)
             )
 
         val accumulators = listOf(accumulator1, accumulator2)
@@ -118,10 +118,16 @@ class EvolutionaryExtensionsTest : StringSpec({
     }
 })
 
-fun createAccumulator(resultsData: Map<String, List<Double>>): Observations {
+fun createAccumulator(resultsData: Map<String, List<Double>>, nfeSequence: List<Int>): Observations {
     val accumulator = Observations()
     resultsData.keys.forEach { metric ->
-        resultsData[metric]?.forEach { accumulator.add(metric, it) }
+        (0 until resultsData[metric]!!.size).forEach {
+            accumulator.add(
+                metric,
+                resultsData[metric]!![it],
+                nfeSequence[it]
+            )
+        }
     }
     return accumulator
 }
