@@ -1,5 +1,6 @@
 package pl.edu.agh.kemo.simulation
 
+import RESULTS_PATH
 import com.github.doyaaaaaken.kotlincsv.dsl.csvReader
 import org.moeaframework.analysis.collector.Observations
 import org.moeaframework.core.NondominatedPopulation
@@ -8,8 +9,6 @@ import org.moeaframework.core.PopulationIO
 import pl.edu.agh.kemo.tools.add
 import pl.edu.agh.kemo.tools.toTrimmedCSV
 import java.io.File
-
-const val RESULTS_PATH = "results_test"
 
 fun saveMetrics(
     resultAccumulators: Map<String, MutableList<Observations>>,

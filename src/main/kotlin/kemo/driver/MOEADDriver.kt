@@ -27,6 +27,7 @@ class MOEADDriverBuilder : DriverBuilder<MOEAD> {
             setDouble("pm.rate", mutationRate)
             setDouble("sbx.distributionIndex", crossoverEta)
             setDouble("sbx.rate", crossoverRate)
+            setInt("updateUtility", 50)
         }
         return MOEADDriver(algorithmProvider.getAlgorithm("MOEAD", properties, problem) as MOEAD, mantissaBits)
     }

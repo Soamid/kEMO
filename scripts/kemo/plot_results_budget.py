@@ -7,8 +7,8 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
-RESULTS_DIR_PATH: pathlib.Path = pathlib.Path('../results_budget')
-PLOTS_DIR_PATH: pathlib.Path = pathlib.Path('../plots')
+RESULTS_DIR_PATH: pathlib.Path = pathlib.Path('../results_moead')
+PLOTS_DIR_PATH: pathlib.Path = pathlib.Path('../plots_test')
 
 BENCHMARK_PATTERN = re.compile(r'(?P<benchmark>[\w|\-]+\d)_metrics_(?P<attempt>\d+)\.csv')
 
@@ -149,35 +149,38 @@ def main() -> None:
                 ax = fig.add_subplot(1, 1, 1)
                 try:
                     for meta_optimizer, colour in COLOURS_FOR_OPTIMIZERS.items():
-                        series = sanitized_results.loc[benchmark, optimizer, meta_optimizer]
-                        meta_optimizer_label = META_OPTIMIZERS_PLOT_NAMES[meta_optimizer]
-                        meta_optimizer_line = META_OPTIMIZERS_LINES[meta_optimizer]
-                        ax.fill_between(
-                            series['NFE-Level', 'mean'], series[column, 'lower_limit'], series[column, 'upper_limit'],
-                            alpha=STANDARD_ALPHA,
-                            color=colour
-                        )
-                        ax.plot(
-                            series['NFE-Level', 'mean'], series[column, 'mean'],
-                            meta_optimizer_line,
-                            color=colour,
-                            label=f"{meta_optimizer_label}+{optimizer}" if meta_optimizer != '' else optimizer,
-                            linewidth=STANDARD_LINE_WIDTH,
-                        )
-                        ax.plot(
-                            series['NFE-Level', 'mean'], series[column, 'lower_limit'],
-                            ':',
-                            color=colour,
-                            alpha=1.0 - STANDARD_ALPHA,
-                            linewidth=STANDARD_LINE_WIDTH * 0.5,
-                        )
-                        ax.plot(
-                            series['NFE-Level', 'mean'], series[column, 'upper_limit'],
-                            ':',
-                            color=colour,
-                            alpha=1.0 - STANDARD_ALPHA,
-                            linewidth=STANDARD_LINE_WIDTH * 0.5,
-                        )
+                        try:
+                            series = sanitized_results.loc[benchmark, optimizer, meta_optimizer]
+                            meta_optimizer_label = META_OPTIMIZERS_PLOT_NAMES[meta_optimizer]
+                            meta_optimizer_line = META_OPTIMIZERS_LINES[meta_optimizer]
+                            ax.fill_between(
+                                series['NFE-Level', 'mean'], series[column, 'lower_limit'], series[column, 'upper_limit'],
+                                alpha=STANDARD_ALPHA,
+                                color=colour
+                            )
+                            ax.plot(
+                                series['NFE-Level', 'mean'], series[column, 'mean'],
+                                meta_optimizer_line,
+                                color=colour,
+                                label=f"{meta_optimizer_label}+{optimizer}" if meta_optimizer != '' else optimizer,
+                                linewidth=STANDARD_LINE_WIDTH,
+                            )
+                            ax.plot(
+                                series['NFE-Level', 'mean'], series[column, 'lower_limit'],
+                                ':',
+                                color=colour,
+                                alpha=1.0 - STANDARD_ALPHA,
+                                linewidth=STANDARD_LINE_WIDTH * 0.5,
+                            )
+                            ax.plot(
+                                series['NFE-Level', 'mean'], series[column, 'upper_limit'],
+                                ':',
+                                color=colour,
+                                alpha=1.0 - STANDARD_ALPHA,
+                                linewidth=STANDARD_LINE_WIDTH * 0.5,
+                            )
+                        except (KeyError, ValueError) as _:
+                            pass
                     ax.set_xlabel("NFE")
                     if column == 'Hypervolume':
                         rounded_max_value = np.round(max_value, 1)

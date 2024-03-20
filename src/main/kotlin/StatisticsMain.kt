@@ -6,34 +6,35 @@ import java.util.EnumSet
 
 fun main() {
     StatisticsGenerator(
-        algorithms = listOf("NSGAIII"),
+        algorithms = listOf("MOEAD"),
         problems = listOf(
-//            "zdt1",
-//            "zdt2",
-//            "zdt3",
-//            "zdt4",
-//            "zdt6",
-//            "UF1",
-//            "UF2",
-//            "UF3",
-//            "UF4",
-//            "UF5",
-//            "UF6",
-//            "UF7",
+            "zdt1",
+            "zdt2",
+            "zdt3",
+            "zdt4",
+            "zdt6",
+            "UF1",
+            "UF2",
+            "UF3",
+            "UF4",
+            "UF5",
+            "UF6" ,
+            "UF7",
             "UF8",
             "UF9",
             "UF10",
             "UF11",
-//            "UF12",
-//            "UF13"
+            "UF12",
+            "UF13",
+//            "DTLZ1-3"
         ),
-        hgsTypes = EnumSet.of(HGSType.CLASSIC, HGSType.PARALLEL, HGSType.HOPSO),
+        hgsTypes = EnumSet.of(HGSType.PARALLEL, HGSType.HOPSO),
         metrics = EnumSet.of(QualityIndicator.IGD, QualityIndicator.SPACING, QualityIndicator.HYPERVOLUME),
-        runRange = 0..29
+        runRange = 0..9
     )
         .apply {
 //            showStatistics()
-//            showWinners()
+            showWinners()
             printLatexComparisonTable(listOf(Stat.MIN, Stat.AVERAGE, Stat.MAX, Stat.ERROR, Stat.IMRPROVEMENT))
         }
 }

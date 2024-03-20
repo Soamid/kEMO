@@ -6,7 +6,10 @@ import kotlinx.coroutines.runBlocking
 import org.moeaframework.Executor
 import org.moeaframework.Instrumenter
 import org.moeaframework.analysis.collector.Observations
+import org.moeaframework.core.NondominatedPopulation
 import org.moeaframework.core.Settings
+import org.moeaframework.core.fitness.CrowdingDistanceFitnessEvaluator
+import org.moeaframework.core.fitness.FitnessBasedArchive
 import org.moeaframework.core.spi.AlgorithmFactory
 import org.moeaframework.core.spi.ProblemFactory
 import pl.edu.agh.kemo.algorithm.HGSProvider
@@ -94,11 +97,15 @@ abstract class Simulation(
         val runTime = measureTimeMillis {
             val population = Executor().withProblem(problemName)
                 .withAlgorithm(algorithmVariant)
-                .withProperty("populationSize", 64)
+                .withProperty("populationSize", 600)
+                .withProperty("updateUtility", 50)
                 .withInstrumenter(instrumenter)
                 .also { configureExecutor(problemName, algorithmVariant, runNo, it) }
                 .run()
-            population.save(algorithmVariant, problemName, runNo)
+            print(population.size())
+            val finalResult = FitnessBasedArchive(CrowdingDistanceFitnessEvaluator(), 100)
+            finalResult.addAll(population)
+            finalResult.save(algorithmVariant, problemName, runNo)
         }
 
         algorithmTimes[algorithmVariant] = (algorithmTimes[algorithmVariant] ?: 0) + runTime

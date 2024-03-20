@@ -70,7 +70,7 @@ class HGSProvider : AlgorithmProvider() {
                 mantissaBits = listOf(4, 16, 64),
                 referencePoint = listOf(), // TODO move to pl.edu.agh.kemo.algorithm.HGS init and calculate?
                 sproutiveness = 3,
-                subPopulationSizes = listOf(64, 20, 10)
+                subPopulationSizes = listOf(600, 200, 100)
             )
             val populationSize = typedProperties.getDouble("populationSize", 100.0).toInt()
             val population = RandomInitialization(problem)

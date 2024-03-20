@@ -2,6 +2,7 @@ package pl.edu.agh.kemo.algorithm
 
 import org.moeaframework.algorithm.AbstractEvolutionaryAlgorithm
 import org.moeaframework.algorithm.DefaultAlgorithms
+import org.moeaframework.algorithm.MOEAD
 import org.moeaframework.algorithm.pso.initialized.OMOPSO
 import org.moeaframework.core.Algorithm
 import org.moeaframework.core.Population
@@ -25,6 +26,8 @@ class AlgorithmsProvider(private val population: Population) : DefaultAlgorithms
         val algorithm = super.getAlgorithm(name, properties, problem)
 
         if(algorithm is AbstractEvolutionaryAlgorithm) {
+            algorithm.initialization = InjectedInitialization(problem, population.toList())
+        } else if(algorithm is MOEAD) {
             algorithm.initialization = InjectedInitialization(problem, population.toList())
         }
         return algorithm
