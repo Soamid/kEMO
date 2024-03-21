@@ -12,7 +12,7 @@ import java.io.NotSerializableException
 import java.io.Serializable
 
 
-interface DriverBuilder<A : AbstractAlgorithm> {
+interface DriverBuilder<A : Algorithm> {
 
     fun create(
         problem: Problem, population: Population, mutationEta: Double, mutationRate: Double, crossoverEta: Double,
@@ -21,7 +21,7 @@ interface DriverBuilder<A : AbstractAlgorithm> {
         val properties = TypedProperties().apply {
             setInt("populationSize", population.size())
         }
-        val algorithmProvider = AlgorithmsProvider(population)
+        val algorithmProvider = KemoAlgorithmsProvider(population)
         return create(
             problem,
             algorithmProvider,
@@ -47,7 +47,7 @@ interface DriverBuilder<A : AbstractAlgorithm> {
 }
 
 
-abstract class Driver<A : AbstractAlgorithm>(
+abstract class Driver<A : Algorithm>(
     protected val algorithm: A,
     private val mantissaBits: Int
 ) : Algorithm {

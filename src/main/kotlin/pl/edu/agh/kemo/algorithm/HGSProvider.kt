@@ -3,6 +3,7 @@ package pl.edu.agh.kemo.algorithm
 import kemo.driver.DBEADriverBuilder
 import kemo.driver.IBEADriverBuilder
 import kemo.driver.MOCMAESDriverBuilder
+import kemo.driver.MOEADDEDriverBuilder
 import kemo.driver.MOEADDriverBuilder
 import kemo.driver.NSGAIIDriverBuilder
 import kemo.driver.NSGAIIIDriverBuilder
@@ -41,6 +42,7 @@ class HGSProvider : AlgorithmProvider() {
         "SPEA2" to ::SPEA2DriverBuilder,
         "IBEA" to ::IBEADriverBuilder,
         "MOEAD" to ::MOEADDriverBuilder,
+        "MOEAD-JMetal" to ::MOEADDEDriverBuilder,
         "DBEA" to ::DBEADriverBuilder,
         "OMOPSO" to ::OMOPSODriverBuilder,
         "MO-CMA-ES" to ::MOCMAESDriverBuilder

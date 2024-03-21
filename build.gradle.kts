@@ -1,5 +1,5 @@
 plugins {
-    kotlin("jvm") version "1.4.21"
+    kotlin("jvm") version "1.7.20"
     idea
 }
 
@@ -15,7 +15,7 @@ idea {
 
 tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile> {
     kotlinOptions {
-        jvmTarget = "1.8"
+        jvmTarget = "17"
     }
 }
 
@@ -31,6 +31,8 @@ tasks.withType<Test> {
 dependencies {
     implementation(kotlin("stdlib"))
     implementation(group = "org.moeaframework", name = "moeaframework", version = "3.10")
+    implementation(group = "org.moeaframework", name = "jmetal-plugin", version = "6.2.0")
+    implementation(group= "org.uma.jmetal", name = "jmetal", version = "6.2")
     implementation(group = "org.slf4j", name="slf4j-api", version= "1.7.30")
     implementation(group = "org.slf4j", name="slf4j-log4j12", version= "1.7.30")
     implementation (group= "me.tongfei", name="progressbar", version="0.9.0")

@@ -8,30 +8,30 @@ import pl.edu.agh.kemo.simulation.TimeSimulation
 import java.io.File
 import java.util.EnumSet
 
-const val RESULTS_PATH = "results_moead_improved"
+const val RESULTS_PATH = "results_moead_de"
 
 fun main() {
     BudgetSimulation(
-        algorithms = listOf("MOEAD"),
+        algorithms = listOf("MOEAD-JMetal"),
         problems = listOf(
-            "zdt1",
-            "zdt2",
-            "zdt3",
-            "zdt4",
-            "zdt6",
+//            "zdt1",
+//            "zdt2",
+//            "zdt3",
+//            "zdt4",
+//            "zdt6",
             "UF1",
-            "UF2",
-            "UF3",
-            "UF4",
-            "UF5",
-            "UF6" ,
-            "UF7",
-            "UF8",
-            "UF9",
-            "UF10",
-            "UF11",
-            "UF12",
-            "UF13",
+//            "UF2",
+//            "UF3",
+//            "UF4",
+//            "UF5",
+//            "UF6" ,
+//            "UF7",
+//            "UF8",
+//            "UF9",
+//            "UF10",
+//            "UF11",
+//            "UF12",
+//            "UF13",
 //            "DTLZ1-3"
         ),
         budget = 300_000,

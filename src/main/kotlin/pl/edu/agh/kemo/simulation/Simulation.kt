@@ -6,12 +6,12 @@ import kotlinx.coroutines.runBlocking
 import org.moeaframework.Executor
 import org.moeaframework.Instrumenter
 import org.moeaframework.analysis.collector.Observations
-import org.moeaframework.core.NondominatedPopulation
 import org.moeaframework.core.Settings
 import org.moeaframework.core.fitness.CrowdingDistanceFitnessEvaluator
 import org.moeaframework.core.fitness.FitnessBasedArchive
 import org.moeaframework.core.spi.AlgorithmFactory
 import org.moeaframework.core.spi.ProblemFactory
+import pl.edu.agh.kemo.algorithm.KemoAlgorithmsProvider
 import pl.edu.agh.kemo.algorithm.HGSProvider
 import pl.edu.agh.kemo.algorithm.HGSType
 import pl.edu.agh.kemo.tools.algorithmVariants
@@ -38,9 +38,14 @@ abstract class Simulation(
 ) {
     private val log = loggerFor<Simulation>()
 
-    fun run() {
-        AlgorithmFactory.getInstance().addProvider(HGSProvider())
+    init {
+        with(AlgorithmFactory.getInstance()) {
+            addProvider(HGSProvider())
+            addProvider(KemoAlgorithmsProvider())
+        }
+    }
 
+    fun run() {
         val algorithmTimes = ConcurrentHashMap<String, Long>()
 
         runBlocking {
@@ -95,7 +100,8 @@ abstract class Simulation(
             .also { if (QualityIndicator.SPACING in metrics) it.attachSpacingCollector() }
 
         val runTime = measureTimeMillis {
-            val population = Executor().withProblem(problemName)
+            val population = Executor()
+                .withProblem(problemName)
                 .withAlgorithm(algorithmVariant)
                 .withProperty("populationSize", 600)
                 .withProperty("updateUtility", 50)
